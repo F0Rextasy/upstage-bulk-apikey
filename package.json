@@ -1,0 +1,55 @@
+{
+  "name": "upstage-bulk-apikey",
+  "version": "1.0.0",
+  "description": "Bulk API keys for upstage.ai — free tier: $10 credit per account, 16 Solar models (solar-pro4, solar-pro3, solar-pro2, solar-mini4, syn-pro). One account per key; mint any number.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "upstage-bulk-apikey": "cli.js",
+    "upstage-bulk-apikey-launcher": "launcher.js"
+  },
+  "main": "cli.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node launcher.js",
+    "mint": "node cli.js"
+  },
+  "keywords": [
+    "api-key",
+    "bulk",
+    "register",
+    "launcher",
+    "upstage",
+    "bulk",
+    "apikey"
+  ],
+  "files": [
+    "cdp.js",
+    "chrome-flags.js",
+    "cli.js",
+    "diag.js",
+    "exp.js",
+    "finish.js",
+    "flow.js",
+    "grabchunks.js",
+    "harvest.js",
+    "launcher.js",
+    "lib.js",
+    "mint.js",
+    "pilot.js",
+    "pool.js",
+    "probe.js",
+    "proxy.js",
+    "register.js",
+    "screen-api.js",
+    "summarize.js",
+    "termsctl.js",
+    "termslab.js",
+    "verify.js",
+    "warm.js",
+    "README.md",
+    "LICENSE"
+  ]
+}
