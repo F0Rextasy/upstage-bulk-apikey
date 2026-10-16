@@ -5,16 +5,17 @@
   "license": "MIT",
   "type": "commonjs",
   "bin": {
-    "upstage-bulk-apikey": "cli.js",
-    "upstage-bulk-apikey-launcher": "launcher.js"
+    "upstage-bulk-apikey": "src/cli.js",
+    "upstage-bulk-apikey-9router": "src/connect-9router.js",
+    "upstage-bulk-apikey-launcher": "src/launcher.js"
   },
-  "main": "cli.js",
+  "main": "src/cli.js",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start": "node launcher.js",
-    "mint": "node cli.js"
+    "start": "node src/launcher.js",
+    "mint": "node src/cli.js"
   },
   "keywords": [
     "api-key",
@@ -23,32 +24,36 @@
     "launcher",
     "upstage",
     "bulk",
-    "apikey"
+    "apikey",
+    "9router",
+    "openai-compatible"
   ],
   "files": [
-    "cdp.js",
-    "chrome-flags.js",
-    "cli.js",
-    "diag.js",
-    "exp.js",
-    "finish.js",
-    "flow.js",
-    "grabchunks.js",
-    "harvest.js",
-    "launcher.js",
-    "lib.js",
-    "mint.js",
-    "pilot.js",
-    "pool.js",
-    "probe.js",
-    "proxy.js",
-    "register.js",
-    "screen-api.js",
-    "summarize.js",
-    "termsctl.js",
-    "termslab.js",
-    "verify.js",
-    "warm.js",
+    "src/cdp.js",
+    "src/chrome-flags.js",
+    "src/cli.js",
+    "src/connect-9router.js",
+    "src/diag.js",
+    "src/exp.js",
+    "src/finish.js",
+    "src/flow.js",
+    "src/grabchunks.js",
+    "src/harvest.js",
+    "src/launcher.js",
+    "src/lib.js",
+    "src/mint.js",
+    "src/pilot.js",
+    "src/pool.js",
+    "src/probe.js",
+    "src/proxy.js",
+    "src/register.js",
+    "src/screen-api.js",
+    "src/summarize.js",
+    "src/termsctl.js",
+    "src/termslab.js",
+    "src/verify.js",
+    "src/warm.js",
+    "src/models.json",
     "README.md",
     "LICENSE"
   ]

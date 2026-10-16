@@ -1,25 +1,25 @@
 <div align="center">
 
 ```
-███████╗ ██████╗ ██████╗ ███████╗██╗  ██╗████████╗ █████╗ ███████╗██╗   ██╗
-██╔════╝██╔═████╗██╔══██╗██╔════╝╚██╗██╔╝╚══██╔══╝██╔══██╗██╔════╝╚██╗ ██╔╝
-█████╗  ██║██╔██║██████╔╝█████╗   ╚███╔╝    ██║   ███████║███████╗ ╚████╔╝
-██╔══╝  ████╔╝██║██╔══██╗██╔══╝   ██╔██╗    ██║   ██╔══██║╚════██║  ╚██╔╝
-██║     ╚██████╔╝██║  ██║███████╗██╔╝ ██╗   ██║   ██║  ██║███████║   ██║
-╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝   ╚═╝
+██╗   ██╗██████╗ ███████╗████████╗ █████╗  ██████╗ ███████╗
+██║   ██║██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝ ██╔════╝
+██║   ██║██████╔╝███████╗   ██║   ███████║██║  ███╗█████╗
+██║   ██║██╔═══╝ ╚════██║   ██║   ██╔══██║██║   ██║██╔══╝
+╚██████╔╝██║     ███████║   ██║   ██║  ██║╚██████╔╝███████╗
+ ╚═════╝ ╚═╝     ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
 ```
 
 # upstage-bulk-apikey
 
-**Bulk API keys for [Upstage](https://upstage.ai) — one account per key, $10 free credit per account, 16 Solar models, real browser sign-up, live-verified, any number.**
+**Bulk-create Upstage (upstage.ai) accounts with auto-generated API keys — OpenAI-compatible inference + 9Router connector.**
 
 [![Node](https://img.shields.io/badge/Node-%E2%89%A518-3DA639?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-blue?style=for-the-badge)](#)
 [![License](https://img.shields.io/badge/license-MIT-6ea8fe?style=for-the-badge)](LICENSE)
 [![Models](https://img.shields.io/badge/models-16%20served-412991?style=for-the-badge)](https://developers.upstage.ai)
-[![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
+[![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6.svg?style=for-the-badge)](#-connect-to-9router)
 
-[🛠 Quick start](#-quick-start) · [✅ Verified](#-verified-working--every-key-is-tested) · [🧭 How it works](#-how-it-works) · [🤖 Models & free tier](#-models--free-tier) · [⚙️ Options](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Issues](#-issues)
+[🛠 Quick start](#-quick-start) · [✅ Verified](#-verified-working--every-key-is-tested) · [🧭 How it works](#-how-it-works) · [🤖 Models & free tier](#-models--free-tier) · [🔌 9Router](#-connect-to-9router) · [⚙️ Options](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Issues](#-issues)
 
 </div>
 
@@ -60,14 +60,17 @@ printf 'socks5://127.0.0.1:1080\n' > proxies.txt
 #    the sign-up code is read from a fresh inbox per account
 
 # 3) go
-node launcher.js                 # interactive menu: mint / finish / verify / screen
+node src/launcher.js                 # interactive menu: mint / finish / verify / screen
 # or drive it directly:
-node cli.js mint   --count 30 --conc 2
-node cli.js finish --conc 2      # finish accounts whose key step never completed
-node cli.js verify --chat        # re-verify keys.txt (models + one chat completion)
+node src/cli.js mint   --count 30 --conc 2
+node src/cli.js finish --conc 2      # finish accounts whose key step never completed
+node src/cli.js verify --chat        # re-verify keys.txt (models + one chat completion)
 ```
 
-`node cli.js help` lists every task and flag.
+Everything the tools write lands **next to the code**: `src/keys.txt`, `src/accounts.json`,
+`src/outputs/` and `src/out/`. The pool is read from `src/proxies.txt`.
+
+`node src/cli.js help` lists every task and flag.
 
 ## ✅ Verified working — every key is tested
 
@@ -79,7 +82,7 @@ A key is written to `keys.txt` only after the live API answers with it:
 | real generation | `POST https://api.upstage.ai/v1/chat/completions` (`solar-pro2`) | `200` + non-empty `choices[0].message.content` |
 
 The batch this repository shipped from: **31 distinct accounts → 31 keys, every one verified
-(`models` 200 + `solar-pro2` chat 200)**. `node cli.js verify --chat` reproduces exactly that check
+(`models` 200 + `solar-pro2` chat 200)**. `node src/cli.js verify --chat` reproduces exactly that check
 for your own file. The verifier **rotates exits on 403/429/5xx/transport errors** and only fails a
 key on `401`, so a key is never condemned because one exit was rejected.
 
@@ -123,6 +126,37 @@ curl https://api.upstage.ai/v1/chat/completions \
   -d '{"model":"solar-pro2","messages":[{"role":"user","content":"hi"}]}'
 ```
 
+## 🔌 Connect to 9Router
+
+The keys this tool mints are ordinary OpenAI-compatible credentials, so a local
+9Router instance can serve them like any other provider: one `openai-compatible`
+node for Upstage (upstage.ai), one connection per key.
+
+```bash
+node src/connect-9router.js \
+  --base http://localhost:20128 --password 123456 \
+  --api-key <key>            # or env NINEROUTER_API_KEY
+```
+
+The launcher menu and the CLI dispatcher drive the same connector:
+
+```bash
+node src/launcher.js --connect-9router    # asks for base URL, password and key (the key is not echoed)
+node src/cli.js connect --api-key <key>   # the same task, non-interactive
+node src/connect-9router.js --help        # every flag and default
+```
+
+Defaults: base `http://localhost:20128`, password `123456`, model prefix
+`upstage`, node `upstage`, upstream `https://api.upstage.ai/v1`, default model
+`solar-mini4`. Register another minted key with `--name "<label 2>"` — the node stays and
+every key becomes another connection 9Router can load-balance across. Then pick a model inside
+9Router:
+
+```
+upstage/solar-mini4
+upstage/solar-pro4
+```
+
 ## ⚙️ CLI options
 
 | task | flags |
@@ -156,8 +190,3 @@ MIT — see [LICENSE](LICENSE). Use it on accounts you are allowed to create.
 
 ---
 
-<div align="center">
-
-**Built by F0REXTASY** · [github.com/F0Rextasy](https://github.com/F0Rextasy) · [x.com/bigbullapp](https://x.com/bigbullapp)
-
-</div>
