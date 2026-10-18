@@ -17,35 +17,73 @@
 [![Dependencies](https://img.shields.io/badge/dependencies-0-blue?style=for-the-badge)](#)
 [![License](https://img.shields.io/badge/license-MIT-6ea8fe?style=for-the-badge)](LICENSE)
 [![Models](https://img.shields.io/badge/models-16%20served-412991?style=for-the-badge)](https://developers.upstage.ai)
-[![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6.svg?style=for-the-badge)](#-connect-to-9router)
+[![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6?style=for-the-badge)](#-connect-to-9router)
+[![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
 
-[🛠 Quick start](#-quick-start) · [✅ Verified](#-verified-working--every-key-is-tested) · [🧭 How it works](#-how-it-works) · [🤖 Models & free tier](#-models--free-tier) · [🔌 9Router](#-connect-to-9router) · [⚙️ Options](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Issues](#-issues)
+[🛠 Quick start](#-quick-start) · [🎁 Free tier](#-free-tier--how-much-you-get) · [🤖 Models](#-models--all-16-of-them) · [🧪 Use the API](#-how-to-use-the-api) · [✅ Verified](#-verified-working--every-key-is-tested) · [🧭 How it works](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [⚙️ Options](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Issues](#-issues)
 
 </div>
 
 ---
 
-> **Mint as many accounts/keys as you need — there is no cap.** `--count N` (default `30`)
-> accepts any N; N accounts, N keys, one account per key.
+## ✨ Why this exists
 
-## ✨ What this does
+Upstage gives every account a **$10 free credit** and its own API key, and both live on the **account** — so the useful unit is *one account per key*, never many keys from one account. Sign-up is a hosted page in a real browser; this tool walks the whole path unattended, over your proxy list, and only records a key after a real completion.
 
-Upstage gives every account a **$10 free credit** and its own API key, and both live on the
-**account** — so the useful unit is *one account per key*, never many keys from one account. Sign-up
-is a hosted page in a real browser; this tool walks the whole path unattended, over your proxy list,
-and only records a key after a real completion.
+## 🎁 Free tier — how much you get
 
+**Every new Upstage account gets a $10 free credit — no card — and the credit lives on the account, not on the key.**
+
+| What | Value |
+| --- | --- |
+| Welcome credit | **$10.00** per account — the console's getting-started page says *“Sign up to receive $10 in free credit”* |
+| Card required | **No** |
+| Rate limit | per the account's plan/console; the verifier rotates exits on `403`/`429`/`5xx` instead of blaming the key |
+| Sign-up | hosted page in a real browser: e-mail code read from a fresh inbox per account |
+| The unit that scales | **one account = one key** → `--count N` is really "N × $10" |
+
+A minted key answers **200** on both `GET /v1/models` and a real `solar-pro2` completion, so the credit is spendable without a card. **How to get more:** the credit lives on the account — `--count N` mints N accounts, each with its own key and $10.
+
+> 💡 The free tier is set by Upstage and can change. Check the live numbers at [upstage.ai](https://upstage.ai) — and let the tool's own gate decide:
+
+```bash
+node src/cli.js --verify-only     # every key in keys.txt is re-tested with a real chat call
 ```
-proxies.txt ──▶ exit probe (console.upstage.ai reachable?)
-                    │
-                    ▼
-   isolated Chrome context  ──▶  console.upstage.ai/login
-                                 └─▶ hosted sign-up ─▶ password ─▶ e-mail code (inbox)
-                                     └─▶ console ─▶ agreement ─▶ /api-keys ─▶ Create key
-                                                                         │
-         GET /v1/models 200  ◀── live verification ──┘                 ▼
-         POST /v1/chat/completions 200                              keys.txt
+
+## 🤖 Models — all 16 of them
+
+`models.json` is the live `GET /v1/models` answer of minted keys — **16 ids**, including:
+
+| Model ID | Note |
+| --- | --- |
+| `solar-pro4`, `solar-pro3`, `solar-pro2` | pro line (newest first) |
+| `solar-mini4`, `solar-mini` | small / fast |
+| `solar-decide`, `solar-decide-flash` | task-specific endpoints |
+| `solar-jev`, `syn-pro` | specialised / synchronous endpoints |
+| `solar-pro4-260806`, `solar-pro3-260323`, `solar-pro2-251215`, `solar-mini4-260922`, `solar-mini-250422`, `syn-pro-251021`, `solar-pro4-solar-pro2-…` | dated snapshots of the above |
+
+Live probe of one key:
+
+```bash
+curl https://api.upstage.ai/v1/chat/completions \
+  -H "Authorization: Bearer up_…" -H "Content-Type: application/json" \
+  -d '{"model":"solar-pro2","messages":[{"role":"user","content":"hi"}]}'
 ```
+
+## 🧪 How to use the API
+
+The base URL is **`https://api.upstage.ai/v1`** — OpenAI-compatible, so anything that speaks OpenAI works.
+
+**Any SDK / curl**
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="https://api.upstage.ai/v1", api_key="up_…")
+print(client.chat.completions.create(model="solar-pro2",
+      messages=[{"role": "user", "content": "hi"}]).choices[0].message.content)
+```
+
+**Any agent / tool with a custom base URL** (Cursor, OpenCode, Kilo Code, …): base URL `https://api.upstage.ai/v1`, paste a key, pick any model id from `models.json`.
 
 ## 🛠 Quick start
 
@@ -67,26 +105,34 @@ node src/cli.js finish --conc 2      # finish accounts whose key step never comp
 node src/cli.js verify --chat        # re-verify keys.txt (models + one chat completion)
 ```
 
-Everything the tools write lands **next to the code**: `src/keys.txt`, `src/accounts.json`,
-`src/outputs/` and `src/out/`. The pool is read from `src/proxies.txt`.
+Everything the tools write lands **next to the code**: `keys.txt`, `accounts.json`, `outputs/` and `out/`; the pool is read from `proxies.txt`. `node src/cli.js help` lists every task and flag.
 
-`node src/cli.js help` lists every task and flag.
+### 🖱️ The launcher
+
+The launcher asks for the count, concurrency and mailbox/proxy settings, remembers them in `launcher.config.json`, and dispatches the CLI tasks (mint / finish / verify / screen / connect).
 
 ## ✅ Verified working — every key is tested
 
 A key is written to `keys.txt` only after the live API answers with it:
 
-| check | call | expected |
+| Check | Call | Expected |
 |---|---|---|
 | auth + model list | `GET https://api.upstage.ai/v1/models` | `200` + the account's model ids |
 | real generation | `POST https://api.upstage.ai/v1/chat/completions` (`solar-pro2`) | `200` + non-empty `choices[0].message.content` |
+| the shipped batch | **31 distinct accounts → 31 keys, every one verified** | `models` 200 + `solar-pro2` chat 200 |
 
-The batch this repository shipped from: **31 distinct accounts → 31 keys, every one verified
-(`models` 200 + `solar-pro2` chat 200)**. `node src/cli.js verify --chat` reproduces exactly that check
-for your own file. The verifier **rotates exits on 403/429/5xx/transport errors** and only fails a
-key on `401`, so a key is never condemned because one exit was rejected.
+The verifier **rotates exits on 403/429/5xx/transport errors** and only fails a key on `401`, so a key is never condemned because one exit was rejected. `node src/cli.js verify --chat` reproduces exactly that check for your own file.
 
 ## 🧭 How it works
+
+```
+inbox (one address per account)                                  a fresh address per account
+   │
+   ├─▶ sign-up: Upstage page → e-mail address → code / link from the inbox
+   ├─▶ session: the account's cookies or access token in hand
+   ├─▶ key mint: the account's key endpoint → plaintext key returned once (written to disk immediately)
+   └─▶ live proof: POST https://api.upstage.ai/v1/chat/completions → real content = the key is live
+```
 
 Per account, one isolated Chrome context (its own proxy + storage):
 
@@ -94,72 +140,14 @@ Per account, one isolated Chrome context (its own proxy + storage):
 2. a fresh exit from `proxies.txt`, handed out only if it answers the console page check **right then**;
 3. hosted sign-up → e-mail code → console;
 4. the sign-up agreement → `/api-keys` → **Create key**;
-5. the key is captured from the create-key **wire response** and verified live:
-   `GET /v1/models` **and** a real `solar-pro2` completion;
+5. the key is captured from the create-key **wire response** and verified live: `GET /v1/models` **and** a real `solar-pro2` completion;
 6. state is checkpointed per account, so a dead exit costs one attempt, not the batch.
 
-**Finish mode.** Accounts that already exist can be finished without any mail: `finish.js` signs
-**in** with the recorded credentials and mints the key — the cheapest way to grow a file you already own.
-
-## 🤖 Models & free tier
-
-`models.json` is the live `GET /v1/models` answer of minted keys — **16 ids**, including:
-
-| id | note |
-|---|---|
-| `solar-pro2` | the verifier's default chat model |
-| `solar-pro3`, `solar-pro4` | newest pro line |
-| `solar-mini`, `solar-mini4` | small / fast |
-| `solar-decide`, `solar-decide-flash`, `solar-jev`, `syn-pro` | task-specific endpoints |
-| `solar-pro4-260806`, `solar-pro3-260323`, `solar-mini4-260922`, … | dated snapshots of the above |
-
-**What a fresh account gets:** a **$10 free credit** — the console's own getting-started page says
-*“Sign up to receive $10 in free credit”*, and a minted key answers **200** on both
-`/v1/models` and a real `solar-pro2` completion, so the credit is spendable without a card.
-
-**How to get more:** the credit lives on the **account** — one account per key, and a new account is
-a new $10. `--count N` mints N accounts, each with its own key and credit.
-
-```bash
-curl https://api.upstage.ai/v1/chat/completions \
-  -H "Authorization: Bearer up_…" -H "Content-Type: application/json" \
-  -d '{"model":"solar-pro2","messages":[{"role":"user","content":"hi"}]}'
-```
-
-## 🔌 Connect to 9Router
-
-The keys this tool mints are ordinary OpenAI-compatible credentials, so a local
-9Router instance can serve them like any other provider: one `openai-compatible`
-node for Upstage (upstage.ai), one connection per key.
-
-```bash
-node src/connect-9router.js \
-  --base http://localhost:20128 --password 123456 \
-  --api-key <key>            # or env NINEROUTER_API_KEY
-```
-
-The launcher menu and the CLI dispatcher drive the same connector:
-
-```bash
-node src/launcher.js --connect-9router    # asks for base URL, password and key (the key is not echoed)
-node src/cli.js connect --api-key <key>   # the same task, non-interactive
-node src/connect-9router.js --help        # every flag and default
-```
-
-Defaults: base `http://localhost:20128`, password `123456`, model prefix
-`upstage`, node `upstage`, upstream `https://api.upstage.ai/v1`, default model
-`solar-mini4`. Register another minted key with `--name "<label 2>"` — the node stays and
-every key becomes another connection 9Router can load-balance across. Then pick a model inside
-9Router:
-
-```
-upstage/solar-mini4
-upstage/solar-pro4
-```
+**Finish mode.** Accounts that already exist can be finished without any mail: `finish.js` signs **in** with the recorded credentials and mints the key — the cheapest way to grow a file you already own.
 
 ## ⚙️ CLI options
 
-| task | flags |
+| Task | Flags |
 |---|---|
 | `mint` | `--count N` (30) · `--conc N` (3) · `--idbase N` (0) · `--attempts N` (4) · `--chat-min N` · `--limit N` · `--headed` |
 | `finish` | `--conc N` · `--only 25,108` · `--attempts N` · `--limit N` · `--headed` |
@@ -167,26 +155,60 @@ upstage/solar-pro4
 | `screen` | `--limit N` · `--conc N` — keep only exits that reach the provider API |
 | `harvest` | screen raw feed lists into a usable pool |
 
-Settings persist in `launcher.config.json` when you use the launcher. Keys land in `keys.txt`, one
-per line, with a mirror at `%USERPROFILE%\upstage-keys.txt`; per-account detail lands in
-`accounts.json`.
+| Environment variable | Default | Meaning |
+| --- | --- | --- |
+| `UPSTAGE_PROXIES` | `proxies.txt` | pool file, one proxy per line |
+
+Settings persist in `launcher.config.json`; keys land in `keys.txt`, one per line, with a mirror at `%USERPROFILE%\upstage-keys.txt`. `node src/cli.js help` is the authoritative list.
 
 ## 🛰️ Behind a proxy
 
-* `proxies.txt` — one exit per line; `scheme://user:pass@host:port`, `scheme://host:port` or bare
-  `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored.
-* Every exit gets a **point-of-use probe** before an account spends time on it; dead exits are
-  dropped, and the pool is only re-read when the usable set runs dry.
+* `proxies.txt` — one exit per line; `scheme://user:pass@host:port`, `scheme://host:port` or bare `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored.
+* Every exit gets a **point-of-use probe** before an account spends time on it; dead exits are dropped, and the pool is only re-read when the usable set runs dry.
 * Nothing listens on your own interface: every request in the flow goes through the pool.
+
+## 📄 Files
+
+| Path | Contents |
+| --- | --- |
+| `keys.txt` | one verified key per line — git-ignored, never committed |
+| `accounts.json` | e-mail / password / key / per-account state |
+| [`models.json`](src/models.json) | the live `GET /v1/models` answer — 16 ids |
+| `proxies.txt` | your exits, one per line — git-ignored |
+| `outputs/`, `out/` | screenshots, DOM dumps and run state — git-ignored |
+
+## 🔌 Connect to 9Router
+
+[9Router](https://9router.com) is a self-hosted, OpenAI-compatible router. Upstage is OpenAI-compatible, so one `openai-compatible` node carries every key:
+
+```bash
+node src/connect-9router.js \
+  --base http://localhost:20128 --password 123456 \
+  --api-key <key>            # or env NINEROUTER_API_KEY
+```
+
+Defaults: base `http://localhost:20128`, password `123456`, node `Upstage`, prefix `upstage`, upstream `https://api.upstage.ai/v1`, default model `solar-mini4`. Register another minted key with `--name "<label 2>"` — every key becomes another connection 9Router can load-balance across. Models are then served as `upstage/<model id>`.
+
+## 🔑 What one key gets you
+
+| | |
+| --- | --- |
+| 🏢 Provider | **Upstage** — [upstage.ai](https://upstage.ai) |
+| 🎁 What the provider gives | $10 free credit per account — 16 Solar models, every key chat-verified |
+| 🔑 What one key gets you | one API key scoped to its own account: the 16 model ids on the endpoint below, at your plan's limits. The quota lives on the **account**, which is exactly why this tool creates one account per key |
+| 🌐 API shape | OpenAI-compatible: `POST https://api.upstage.ai/v1/chat/completions` |
+| 🔒 Your data | only upstage.ai and the inbox backend you configure are contacted; keys stay on your machine |
 
 ## 🐞 Issues
 
-Open an issue with the failing step, the exit used and the tool's stdout — the dumps in `outputs/`
-(screenshots + DOM at each step) make failures reproducible without leaking a key.
+Open an issue with the failing step, the exit used and the tool's stdout — the dumps in `outputs/` (screenshots + DOM at each step) make failures reproducible without leaking a key.
 
 ## 📄 License
 
-MIT — see [LICENSE](LICENSE). Use it on accounts you are allowed to create.
+MIT © 2026 — see [LICENSE](LICENSE).
 
----
+<div align="center">
 
+**[MIT](LICENSE)** © 2026 upstage-bulk-apikey contributors
+
+</div>
