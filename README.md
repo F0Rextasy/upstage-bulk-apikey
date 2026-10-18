@@ -92,7 +92,7 @@ git clone https://github.com/F0Rextasy/upstage-bulk-apikey.git
 cd upstage-bulk-apikey
 
 # 1) your proxy list, one line per exit (http://, socks5://, socks4:// or bare host:port)
-printf 'socks5://127.0.0.1:1080\n' > proxies.txt
+printf 'socks5://127.0.0.1:1080\n' > src/proxies.txt
 
 # 2) mailboxes — point the tool at your own mailbox (an inbox API token or IMAP):
 #    the sign-up code is read from a fresh inbox per account
@@ -105,7 +105,7 @@ node src/cli.js finish --conc 2      # finish accounts whose key step never comp
 node src/cli.js verify --chat        # re-verify keys.txt (models + one chat completion)
 ```
 
-Everything the tools write lands **next to the code**: `keys.txt`, `accounts.json`, `outputs/` and `out/`; the pool is read from `proxies.txt`. `node src/cli.js help` lists every task and flag.
+Everything the tools write lands **next to the code**, in `src/`: `src/keys.txt`, `src/accounts.json`, `src/outputs/` and `src/out/`; the pool is read from `src/proxies.txt`. `node src/cli.js help` lists every task and flag.
 
 ### 🖱️ The launcher
 
@@ -157,13 +157,13 @@ Per account, one isolated Chrome context (its own proxy + storage):
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |
-| `UPSTAGE_PROXIES` | `proxies.txt` | pool file, one proxy per line |
+| `UPSTAGE_PROXIES` | `src/proxies.txt` | pool file, one proxy per line |
 
 Settings persist in `launcher.config.json`; keys land in `keys.txt`, one per line, with a mirror at `%USERPROFILE%\upstage-keys.txt`. `node src/cli.js help` is the authoritative list.
 
 ## 🛰️ Behind a proxy
 
-* `proxies.txt` — one exit per line; `scheme://user:pass@host:port`, `scheme://host:port` or bare `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored.
+* `src/proxies.txt` — one exit per line (the launcher and every task read it from `src/`); `scheme://user:pass@host:port`, `scheme://host:port` or bare `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored.
 * Every exit gets a **point-of-use probe** before an account spends time on it; dead exits are dropped, and the pool is only re-read when the usable set runs dry.
 * Nothing listens on your own interface: every request in the flow goes through the pool.
 
@@ -171,11 +171,11 @@ Settings persist in `launcher.config.json`; keys land in `keys.txt`, one per lin
 
 | Path | Contents |
 | --- | --- |
-| `keys.txt` | one verified key per line — git-ignored, never committed |
-| `accounts.json` | e-mail / password / key / per-account state |
+| `src/keys.txt` | one verified key per line — git-ignored, never committed |
+| `src/accounts.json` | e-mail / password / key / per-account state |
 | [`models.json`](src/models.json) | the live `GET /v1/models` answer — 16 ids |
-| `proxies.txt` | your exits, one per line — git-ignored |
-| `outputs/`, `out/` | screenshots, DOM dumps and run state — git-ignored |
+| `src/proxies.txt` | your exits, one per line — git-ignored |
+| `src/outputs/`, `src/out/` | screenshots, DOM dumps and run state — git-ignored |
 
 ## 🔌 Connect to 9Router
 
