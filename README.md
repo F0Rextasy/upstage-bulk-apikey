@@ -149,11 +149,13 @@ Per account, one isolated Chrome context (its own proxy + storage):
 
 | Task | Flags |
 |---|---|
-| `mint` | `--count N` (30) · `--conc N` (3) · `--idbase N` (0) · `--attempts N` (4) · `--chat-min N` · `--limit N` · `--headed` |
+| `mint` | `--count N` (30) · `--conc N` (3) · `--preset turbo\|balanced\|safe` (conc + pacing gap) · `--gap S` · `--idbase N` (0) · `--attempts N` (4) · `--chat-min N` · `--limit N` · `--headed` |
 | `finish` | `--conc N` · `--only 25,108` · `--attempts N` · `--limit N` · `--headed` |
 | `verify` | `--file keys.txt` · `--limit N` · `--chat` · `--proxy <one exit>` |
 | `screen` | `--limit N` · `--conc N` — keep only exits that reach the provider API |
 | `harvest` | screen raw feed lists into a usable pool |
+
+Turbo önerilir (5); daha fazlası zayıf bilgisayarda yük/ban riski.
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |

@@ -6,6 +6,7 @@
  *
  *   node src/mint.js [--count 30] [--conc 3] [--port 9290] [--headed]
  *                [--chat-min 5] [--limit N] [--attempts 4]
+ *                [--preset=turbo|balanced|safe] [--gap S]
  *
  * Free-proxy exits die within minutes, so exits are screened *on demand*
  * (api.upstage.ai must answer 401 for a bogus bearer and console.upstage.ai
@@ -35,13 +36,30 @@ process.on('unhandledRejection', (e) => {
   } catch {}
 });
 const flag = (n) => args.includes(n);
+
+// Run-shape presets (operator standard v3): `--preset=turbo|balanced|safe` sets the
+// browser concurrency (turbo = 5) and the pacing gap; an explicit `--conc` / `--gap`
+// wins and no `--preset` keeps the historical conc 3. Headless stays the default
+// (proven under the pinned UA); `--headed` or SD_HEADLESS=0 shows the browser.
+const { presetArgv, resolvePreset } = require('./preset');
+const gapArg = opt('--gap', null);
+const PRESET = resolvePreset({
+  preset: presetArgv(args) || opt('--preset', null),
+  conc: null,
+  gap: gapArg == null ? null : parseFloat(gapArg),
+  defaultConc: 3,
+});
+const GAP_MS = PRESET.gap == null ? null : Math.max(0, PRESET.gap) * 1000;
 const COUNT = parseInt(opt('--count', '30'), 10);
-const CONC = parseInt(opt('--conc', '3'), 10);
+const CONC = Math.max(1, parseInt(opt('--conc', String(PRESET.conc)), 10));
 const PORT = parseInt(opt('--port', '9290'), 10);
 const CHAT_MIN = parseInt(opt('--chat-min', '5'), 10);
 const ATTEMPTS = parseInt(opt('--attempts', '4'), 10);
 const LIMIT = flag('--limit') ? parseInt(opt('--limit', '1'), 10) : COUNT;
 const IDBASE = parseInt(opt('--idbase', '0'), 10);
+const HEADLESS = !flag('--headed') && process.env.SD_HEADLESS !== '0';
+// Live console: keys landed in this run.
+let okCount = 0;
 
 const HERE = L.HERE;
 const KEYS_TXT = path.join(HERE, 'keys.txt');
@@ -407,7 +425,7 @@ async function main() {
   await pool.pump(1);
   L.log(`MINT initial exits: ${pool.ready.length}`);
 
-  await L.ensureChrome(PORT, path.join(HERE, `.up-chrome-${PORT}`), { headless: !flag('--headed') });
+  await L.ensureChrome(PORT, path.join(HERE, `.up-chrome-${PORT}`), { headless: HEADLESS });
 
   let cdp = null;
   let cdpAlive = false;
@@ -491,6 +509,7 @@ async function main() {
         lastSlot = slot;
 
         L.log(`[${id}] attempt ${attempt}: mailbox=${mailbox.address} exit=${L.proxyLabel(slot.proxy)} (take ${Math.round((Date.now() - t1) / 1000)}s) ip=${slot.ip || '?'} api=${slot.api}`);
+        console.log(`… #${id} başladı (${slot.proxy ? L.proxyLabel(slot.proxy) : 'direct'})`);
         let res = null;
         try {
           res = await signup.mintAccount({ id, cdp, slot, mailbox });
@@ -534,10 +553,13 @@ async function main() {
           st2.exitsFound = pool.found;
           writeState(st2);
           L.log(`[${id}] OK ${rec.keyMasked} email=${rec.email} chat=${v.chat} models=${(v.models || []).length}`);
+          okCount++;
+          console.log(`✓ #${id} KEY ALINDI: ${rec.key.slice(0, 22)}…   [${okCount} ok / ${N} hedef]`);
           made = true;
         } catch (e) {
           errors.push(`#${id} try${attempt} ${L.proxyLabel(slot.proxy)} ${String(e.message).slice(0, 200)}`);
           L.log(`[${id}] FAIL try${attempt} ${String(e.message).slice(0, 240)}`);
+          console.log(`✗ #${id} key yok: ${String(e.message).slice(0, 200)}`);
           if (res && res.screens) L.log(`[${id}] screens: ${res.screens.slice(-3).join(', ')}`);
           await sleep(800);
         } finally {
@@ -550,12 +572,14 @@ async function main() {
         }
       }
       if (!made) continue;
+      if (GAP_MS) await sleep(GAP_MS);
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(CONC, N) }, worker));
   const nKeys = fs.existsSync(KEYS_TXT) ? fs.readFileSync(KEYS_TXT, 'utf8').split(/\r?\n/).filter(Boolean).length : 0;
   L.log(`MINT done. keys=${nKeys} screened=${pool.screened} exitsFound=${pool.found}`);
+  console.log(`MINT ${okCount}/${N} OK`);
   if (errors.length) {
     L.log(`MINT errors:\n` + errors.join('\n'));
     fs.writeFileSync(path.join(L.OUT, 'mint-errors.txt'), errors.join('\n'));

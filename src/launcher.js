@@ -14,12 +14,15 @@ const path = require('path');
 const readline = require('readline');
 const { spawnSync } = require('child_process');
 
+// Keep the menu alive when a task's socket dies mid-run.
+process.on('uncaughtException', (e) => console.log(`WARN uncaught: ${String(e && e.message).slice(0, 180)}`));
+
 const HERE = __dirname;
 const CONFIG = path.join(HERE, 'launcher.config.json');
 const POOL = path.join(HERE, 'proxies.txt');
 const KEYS = path.join(HERE, 'keys.txt');
 
-const defaults = { count: 30, conc: 2, chatMin: 1, headed: false, limit: 0, file: 'keys.txt' };
+const defaults = { count: 30, conc: 2, chatMin: 1, headed: false, limit: 0, file: 'keys.txt', preset: '' };
 let cfg = { ...defaults };
 try {
   Object.assign(cfg, JSON.parse(fs.readFileSync(CONFIG, 'utf8')));
@@ -96,6 +99,7 @@ async function settings() {
   console.log(`  4) show browser        ${cfg.headed ? 'yes' : 'no'}`);
   console.log(`  5) attempt limit       ${cfg.limit || 'unlimited'}`);
   console.log(`  6) keys file           ${cfg.file}`);
+  console.log(`  7) preset              ${cfg.preset || '(none — the task default)'}`);
   console.log('  0) back');
   const pick = await ask('choose', '0');
   if (pick === '1') cfg.count = parseInt(await ask('keys to mint', cfg.count), 10) || cfg.count;
@@ -104,6 +108,7 @@ async function settings() {
   if (pick === '4') cfg.headed = String(await ask('show browser (y/n)', cfg.headed ? 'y' : 'n')).toLowerCase().startsWith('y');
   if (pick === '5') cfg.limit = parseInt(await ask('attempt limit', cfg.limit), 10) || 0;
   if (pick === '6') cfg.file = await ask('keys file', cfg.file);
+  if (pick === '7') cfg.preset = String(await ask('preset (turbo/balanced/safe, blank = none)', cfg.preset)).trim().toLowerCase();
   save();
 }
 
@@ -111,6 +116,9 @@ function common() {
   const a = ['--conc', String(cfg.conc)];
   if (cfg.headed) a.push('--headed');
   if (cfg.limit) a.push('--limit', String(cfg.limit));
+  // Run-shape presets (operator standard v3): turbo = 5 workers (recommended),
+  // balanced = 4, safe = 2. Empty keeps the task's own historical conc 3.
+  if (cfg.preset) a.push('--preset=' + cfg.preset);
   return a;
 }
 

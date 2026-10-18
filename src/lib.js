@@ -23,9 +23,11 @@ const OUT = path.join(HERE, 'outputs');
 const ORIGIN = 'https://console.upstage.ai';
 const API_BASE = 'https://api.upstage.ai/v1';
 const PUBLIC_SITE = 'https://www.upstage.ai';
-const CHROME = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const { chromePath, uaPin, fingerprintForSeed } = require('./chrome-flags.js');
+// SD_CHROME (chrome-flags.js) wins; the historical CHROME_PATH still works.
+const CHROME = process.env.SD_CHROME || process.env.CHROME_PATH || chromePath();
 
-const UA =
+const UA = process.env.SD_UA ||
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 const UA_METADATA = {
   brands: [
@@ -465,9 +467,13 @@ function launchChrome(port, profileDir, { headless = true } = {}) {
   try {
     lean = require('./chrome-flags.js').leanArgs(); // across runs memory trim
   } catch {}
+  // One fingerprint per profile: UA (headless only), viewport, timezone and
+  // locale come from this profile's index. SD_UA / SD_UA_POOL pin a UA instead.
+  const fp = fingerprintForSeed(profileDir);
   const flags = [
     headless ? '--headless=new' : '--start-maximized',
-    ...lean,
+    // A headless run must not advertise `HeadlessChrome`.
+    ...(headless ? [`--user-agent=${fp.userAgent || uaPin()}`] : []),
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profileDir}`,
     '--no-first-run',
@@ -482,11 +488,11 @@ function launchChrome(port, profileDir, { headless = true } = {}) {
     '--metrics-recording-only',
     '--disable-blink-features=AutomationControlled',
     '--password-store=basic',
-    '--lang=en-US',
-    '--window-size=1366,900',
+    `--lang=${fp.locale.lang}`,
+    `--window-size=${fp.windowSize}`,
     'about:blank',
   ];
-  const child = spawn(CHROME, flags, { detached: true, stdio: 'ignore', windowsHide: true });
+  const child = spawn(CHROME, flags, { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, TZ: fp.timezone } });
   child.unref();
   return child.pid;
 }

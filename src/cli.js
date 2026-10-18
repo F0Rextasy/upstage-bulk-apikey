@@ -37,6 +37,7 @@ function help() {
   console.log('  --count N     keys to mint          --conc N     browser concurrency (2 is safe)');
   console.log('  --limit N     stop after N attempts --chat-min N require this many chat replies');
   console.log('  --headed      show the browser      --file F     keys file (verify)');
+  console.log('  --preset P    run shape: turbo (5 workers, recommended) / balanced / safe');
   console.log('\nproxy pool:');
   console.log('  one exit per line in proxies.txt — scheme://host:port[#comment], user:pass@ supported');
   console.log('\n9Router (optional, local inference router):');
