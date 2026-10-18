@@ -24,6 +24,12 @@
 
 </div>
 
+<div align="center">
+
+**English** · [Türkçe](README.tr.md) · [中文](README.cn.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português](README.pt.md)
+
+</div>
+
 ---
 
 ## ✨ Why this exists
@@ -54,13 +60,9 @@ node src/cli.js --verify-only     # every key in keys.txt is re-tested with a re
 
 `models.json` is the live `GET /v1/models` answer of minted keys — **16 ids**, including:
 
-| Model ID | Note |
-| --- | --- |
-| `solar-pro4`, `solar-pro3`, `solar-pro2` | pro line (newest first) |
-| `solar-mini4`, `solar-mini` | small / fast |
-| `solar-decide`, `solar-decide-flash` | task-specific endpoints |
-| `solar-jev`, `syn-pro` | specialised / synchronous endpoints |
-| `solar-pro4-260806`, `solar-pro3-260323`, `solar-pro2-251215`, `solar-mini4-260922`, `solar-mini-250422`, `syn-pro-251021`, `solar-pro4-solar-pro2-…` | dated snapshots of the above |
+|Model|✓|
+|---|---|
+|`solar-pro2`|✓|
 
 Live probe of one key:
 
