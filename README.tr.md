@@ -11,7 +11,7 @@
 
 # upstage-bulk-apikey
 
-**Otomatik olarak API anahtarları üreten Upstage (upstage.ai) hesaplarını toplu olarak oluşturun — OpenAI ile uyumlu çıkarım + 9Router bağlayıcısı.**
+**Otomatik oluşturulan API anahtarlarıyla toplu Upstage (upstage.ai) hesabı oluşturun — OpenAI uyumlu çıkarım + 9Router bağlayıcısı.**
 
 [![Node](https://img.shields.io/badge/Node-%E2%89%A518-3DA639?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-blue?style=for-the-badge)](#)
@@ -20,7 +20,7 @@
 [![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6?style=for-the-badge)](#-connect-to-9router)
 [![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
 
-[🛠 Hızlı başlangıç](#-hızlı-başlangıç) · [🎁 Ücretsiz katman](#-ücretsiz-katman--ne-kadar-alırsınız) · [🤖 Modeller](#-modeller--tüm-16-sı) · [🧪 API'yi kullanma](#-apiyi-nasıl-kullanılır) · [✅ Doğrulanmış](#-çalıştığı-doğrulanmış--her-anahtar-test edilmiştir) · [🧭 Nasıl çalışır](#-nasıl-çalışır) · [🔌 9Router](#-9router-a-bağlanma) · [⚙️ Seçenekler](#️-cli-seçenekleri) · [🛰️ Vekil sunucular](#️-bir-vekil-sunucu-arkasında) · [🐞 Sorunlar](#-sorunlar)
+[🛠 Hızlı başlangıç](#-quick-start) · [🎁 Ücretsiz katman](#-free-tier--how-much-you-get) · [🤖 Modeller](#-models--all-16-of-them) · [🧪 API'yi kullanma](#-how-to-use-the-api) · [✅ Doğrulandı](#-verified-working--every-key-is-tested) · [🧭 Nasıl çalışır](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [⚙️ Seçenekler](#️-cli-options) · [🛰️ Proxy'ler](#️-behind-a-proxy) · [🐞 Sorunlar](#-issues)
 
 </div>
 
@@ -30,51 +30,68 @@
 
 </div>
 
+
+
+
+
 ---
 
-## ✨ Neden bu var
+## ✨ Neden var
 
-Upstage, her hesaba **10$ ücretsiz kredi** ve kendi API anahtarını verir ve ikisi de **hesaba** bağlıdır — bu yüzden faydalı birim, bir hesaptan birçok anahtar değil, *bir anahtar başına bir hesaptır*. Kayıt işlemi gerçek bir tarayıcıdaki barındırılan bir sayfada yapılır; bu araç, vekil listeniz üzerinden tüm süreci otomatik olarak yürütür ve yalnızca gerçek bir tamamlamadan sonra bir anahtarı kaydeder.
+Upstage her hesaba **$10 ücretsiz kredi** ve kendi API anahtarını verir; ikisi de **hesapta** yaşar — yani faydalı birim *anahtar başına bir hesaptır*, asla tek hesaptan birçok anahtar değildir. Kayıt, gerçek bir tarayıcıda barındırılan bir sayfadır; bu araç tüm yolu proxy listeniz üzerinden gözetimsiz kat eder ve bir anahtarı ancak gerçek bir tamamlama sonrasında kaydeder.
 
 ## 🎁 Ücretsiz katman — ne kadar alırsınız
 
-**Her yeni Upstage hesabına kart gerekmeden 10$ ücretsiz kredi verilir ve kredi hesaba bağlıdır, anahtara değil.**
+**Her yeni Upstage hesabı $10 ücretsiz kredi alır — kart gerekmez — ve kredi anahtarda değil, hesapta yaşar.**
 
 | Ne | Değer |
 | --- | --- |
-| Hoş geldin kredisi | **10,00 $** her hesap başına — konsolun başlangıç sayfası *“Ücretsiz 10$ kredi almak için kaydolun”* der |
+| Hoş geldin kredisi | Hesap başına **$10.00** — konsolun başlangıç sayfası *“$10 ücretsiz kredi almak için kaydolun”* der |
 | Kart gerekli mi | **Hayır** |
-| Hız sınırı | hesabın planına/konsoluna göre; doğrulayıcı, anahtarı suçlamak yerine `403`/`429`/`5xx` durumlarında çıkışları döndürür |
-| Kayıt | gerçek bir tarayıcıdaki barındırılan sayfa: her hesap için yeni bir gelen kutusundan e-posta kodu okunur |
-| Ölçeklenebilen birim | **bir hesap = bir anahtar** → `--count N` aslında "N × 10$" anlamına gelir |
+| Hız sınırı | hesabın planına/konsoluna göre; doğrulayıcı `403`/`429`/`5xx` durumlarında anahtarı suçlamak yerine çıkışları değiştirir |
+| Kayıt | gerçek bir tarayıcıda barındırılan sayfa: hesap başına taze bir gelen kutusundan okunan e-posta kodu |
+| Ölçeklenen birim | **bir hesap = bir anahtar** → `--count N` aslında "N × $10" demektir |
 
-Oluşturulan bir anahtar, hem `GET /v1/models` hem de gerçek bir `solar-pro2` tamamlamasında **200** döndürür, bu yüzden kredi kart olmadan harcanabilir. **Daha fazla nasıl alınır:** kredi hesaba bağlıdır — `--count N`, her biri kendi anahtarı ve 10$ kredisi olan N hesap oluşturur.
+Oluşturulan bir anahtar hem `GET /v1/models` hem de gerçek bir `solar-pro2` tamamlamasında **200** yanıtı verir; böylece kredi kart olmadan harcanabilir. **Daha fazlası nasıl alınır:** kredi hesapta yaşar — `--count N`, her biri kendi anahtarına ve $10'a sahip N hesap oluşturur.
 
-> 💡 Ücretsiz katman, Upstage tarafından belirlenir ve değişebilir. Canlı sayıları [upstage.ai](https://upstage.ai) adresinden kontrol edin — ve aracı kendi geçidinin karar vermesine izin verin:
+> 💡 Ücretsiz katman Upstage tarafından belirlenir ve değişebilir. Güncel sayıları [upstage.ai](https://upstage.ai) adresinden kontrol edin — ve kararı aracın kendi kontrolüne bırakın:
 
 ```bash
-node src/cli.js --verify-only     # keys.txt içindeki her anahtar gerçek bir sohbet çağrısıyla yeniden test edilir
+node src/cli.js --verify-only     # every key in keys.txt is re-tested with a real chat call
 ```
 
-## 🤖 Modeller — tüm 16'sı
+## 🤖 Modeller — 16'sının tamamı
 
-`models.json`, oluşturulan anahtarların canlı `GET /v1/models` yanıtını içerir — **16 kimlik**, bunlara dahildir:
+`models.json`, oluşturulan anahtarların canlı `GET /v1/models` yanıtıdır — şunlar dahil **16 kimlik**:
 
 |Model|✓|
 |---|---|
 |`solar-pro2`|✓|
+|`solar-mini`|✓|
+|`solar-mini-250422`|✓|
+|`solar-mini4`|✓|
+|`solar-mini4-260922`|✓|
+|`solar-pro2-251215`|✓|
+|`solar-pro3`|✓|
+|`solar-pro3-260323`|✓|
+|`solar-pro4`|✓|
+|`solar-pro4-260806`|✓|
+|`syn-pro`|✓|
+|`syn-pro-251021`|✓|
 
-Bir anahtarın canlı sorgusu:
+2026-10-19 canlı yeniden kontrolü: 16 katalog kimliğinden 12'si bir sohbet isteğine `200` yanıtı verdi (test edilen diğer kimlikler — `solar-decide`, `solar-decide-flash`, `solar-jev` — vermedi).
+
+Bir anahtarın canlı denemesi:
 
 ```bash
 curl https://api.upstage.ai/v1/chat/completions \
   -H "Authorization: Bearer up_…" -H "Content-Type: application/json" \
-  -d '{"model":"solar-pro2","messages":[{"role":"user","content":"merhaba"}]}'
+  -d '{"model":"solar-pro2","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-## 🧪 API'yi nasıl kullanılır
+## 🧪 API nasıl kullanılır
 
-Temel URL **`https://api.upstage.ai/v1`** şeklindedir — OpenAI ile uyumlu olduğu için OpenAI konuşan her şey çalışır.
+Temel URL **`https://api.upstage.ai/v1`** — OpenAI uyumludur, yani OpenAI protokolünü konuşan her şey çalışır.
 
 **Herhangi bir SDK / curl**
 
@@ -82,10 +99,10 @@ Temel URL **`https://api.upstage.ai/v1`** şeklindedir — OpenAI ile uyumlu old
 from openai import OpenAI
 client = OpenAI(base_url="https://api.upstage.ai/v1", api_key="up_…")
 print(client.chat.completions.create(model="solar-pro2",
-      messages=[{"role": "user", "content": "merhaba"}]).choices[0].message.content)
+      messages=[{"role": "user", "content": "hi"}]).choices[0].message.content)
 ```
 
-**Özel temel URL destekleyen herhangi bir ajan / araç** (Cursor, OpenCode, Kilo Code, …): temel URL `https://api.upstage.ai/v1`, bir anahtarı yapıştırın, `models.json` içindeki herhangi bir model kimliğini seçin.
+**Özel temel URL kullanan herhangi bir ajan / araç** (Cursor, OpenCode, Kilo Code, …): temel URL `https://api.upstage.ai/v1`, bir anahtar yapıştırın, `models.json` içinden herhangi bir model kimliği seçin.
 
 ## 🛠 Hızlı başlangıç
 
@@ -93,59 +110,59 @@ print(client.chat.completions.create(model="solar-pro2",
 git clone https://github.com/F0Rextasy/upstage-bulk-apikey.git
 cd upstage-bulk-apikey
 
-# 1) vekil listeniz, her satırda bir çıkış (http://, socks5://, socks4:// veya sadece host:port)
+# 1) your proxy list, one line per exit (http://, socks5://, socks4:// or bare host:port)
 printf 'socks5://127.0.0.1:1080\n' > src/proxies.txt
 
-# 2) posta kutuları — aracı kendi posta kutunuza yönlendirin (bir gelen kutusu API anahtarı veya IMAP):
-#    kayıt kodu, her hesap için yeni bir gelen kutusundan okunur
+# 2) mailboxes — point the tool at your own mailbox (an inbox API token or IMAP):
+#    the sign-up code is read from a fresh inbox per account
 
-# 3) başlayın
-node src/launcher.js                 # etkileşimli menü: oluştur / tamamla / doğrula / ekrana al
-# veya doğrudan çalıştırın:
+# 3) go
+node src/launcher.js                 # interactive menu: mint / finish / verify / screen
+# or drive it directly:
 node src/cli.js mint   --count 30 --conc 2
-node src/cli.js finish --conc 2      # anahtar adımı tamamlanmamış hesapları tamamla
-node src/cli.js verify --chat        # keys.txt dosyasını yeniden doğrula (modeller + bir sohbet tamamlaması)
+node src/cli.js finish --conc 2      # finish accounts whose key step never completed
+node src/cli.js verify --chat        # re-verify keys.txt (models + one chat completion)
 ```
 
-Araçların yazdığı her şey, `src/` içinde koda bitişik olarak yer alır: `src/keys.txt`, `src/accounts.json`, `src/outputs/` ve `src/out/`; havuz `src/proxies.txt` dosyasından okunur. `node src/cli.js help` tüm görevleri ve bayrakları listeler.
+Araçların yazdığı her şey **kodun yanına**, `src/` içine düşer: `src/keys.txt`, `src/accounts.json`, `src/outputs/` ve `src/out/`; havuz `src/proxies.txt` dosyasından okunur. `node src/cli.js help` her görevi ve bayrağı listeler.
 
 ### 🖱️ Başlatıcı
 
-Başlatıcı, sayı, eşzamanlılık ve posta kutusu/vekil ayarlarını sorar, bunları `launcher.config.json` içinde kaydeder ve CLI görevlerini (oluştur / tamamla / doğrula / ekrana al / bağlan) başlatır.
+Başlatıcı sayıyı, eşzamanlılığı ve posta kutusu/proxy ayarlarını sorar, bunları `launcher.config.json` içinde hatırlar ve CLI görevlerini (mint / finish / verify / screen / connect) yönlendirir.
 
-## ✅ Çalıştığı doğrulanmış — her anahtar test edilmiştir
+## ✅ Çalıştığı doğrulandı — her anahtar test edilir
 
-Bir anahtar yalnızca canlı API'den yanıt alındıktan sonra `keys.txt` dosyasına yazılır:
+Bir anahtar `keys.txt` dosyasına ancak canlı API onunla yanıt verdikten sonra yazılır:
 
 | Kontrol | Çağrı | Beklenen |
 |---|---|---|
 | kimlik doğrulama + model listesi | `GET https://api.upstage.ai/v1/models` | `200` + hesabın model kimlikleri |
 | gerçek üretim | `POST https://api.upstage.ai/v1/chat/completions` (`solar-pro2`) | `200` + boş olmayan `choices[0].message.content` |
-| gönderilen paket | **31 farklı hesap → 31 anahtar, her biri doğrulanmıştır** | `modeller` 200 + `solar-pro2` sohbet 200 |
+| gönderilen toplu iş | **31 farklı hesap → 31 anahtar, her biri doğrulandı** | `models` 200 + `solar-pro2` sohbet 200 |
 
-Doğrulayıcı **403/429/5xx/iletim hatalarında çıkışları döndürür** ve yalnızca `401` durumunda bir anahtarı başarısız sayar, bu yüzden bir anahtar asla bir çıkışın reddedilmesi nedeniyle iptal edilmez. `node src/cli.js verify --chat`, kendi dosyanız için tam olarak bu kontrolü yeniden üretir.
+Doğrulayıcı **403/429/5xx/taşıma hatalarında çıkışları değiştirir** ve bir anahtarı yalnızca `401` durumunda başarısız sayar; böylece bir çıkış reddedildi diye bir anahtar asla mahkûm edilmez. `node src/cli.js verify --chat` kendi dosyanız için tam olarak bu kontrolü yeniden üretir.
 
 ## 🧭 Nasıl çalışır
 
 ```
-posta kutusu (her hesap için bir adres)                                  her hesap için yeni bir adres
+inbox (one address per account)                                  a fresh address per account
    │
-   ├─▶ kayıt: Upstage sayfası → e-posta adresi → gelen kutusundan gelen kod / bağlantı
-   ├─▶ oturum: hesabın çerezleri veya erişim belirteci elde edilir
-   ├─▶ anahtar oluşturma: hesabın anahtar uç noktası → bir kez dönen düz metin anahtarı (hemen diske yazılır)
-   └─▶ canlı kanıt: POST https://api.upstage.ai/v1/chat/completions → gerçek içerik = anahtar canlıdır
+   ├─▶ sign-up: Upstage page → e-mail address → code / link from the inbox
+   ├─▶ session: the account's cookies or access token in hand
+   ├─▶ key mint: the account's key endpoint → plaintext key returned once (written to disk immediately)
+   └─▶ live proof: POST https://api.upstage.ai/v1/chat/completions → real content = the key is live
 ```
 
-Hesap başına, bir izole Chrome bağlamı (kendi vekil + depolaması):
+Hesap başına, yalıtılmış bir Chrome bağlamı (kendi proxy'si + depolaması):
 
-1. yeni bir posta kutusu — kodlar genellikle saniyeler içinde gelir;
-2. `proxies.txt` dosyasından yeni bir çıkış, yalnızca konsol sayfası kontrolünü **o anda** geçerse verilir;
+1. taze bir posta kutusu — kodlar genellikle saniyeler içinde gelir;
+2. `proxies.txt` dosyasından taze bir çıkış; yalnızca konsol sayfası kontrolüne **tam o anda** yanıt verirse dağıtılır;
 3. barındırılan kayıt → e-posta kodu → konsol;
 4. kayıt sözleşmesi → `/api-keys` → **Anahtar oluştur**;
-5. anahtar, anahtar oluştur **iletişim yanıtı**ndan yakalanır ve canlı olarak doğrulanır: `GET /v1/models` **ve** gerçek bir `solar-pro2` tamamlaması;
-6. durum hesap başına kontrol edilir, bu yüzden bozuk bir çıkış bir denemeye mal olur, tüm pakete değil.
+5. anahtar, anahtar oluşturma **ağ yanıtından** yakalanır ve canlı doğrulanır: `GET /v1/models` **ve** gerçek bir `solar-pro2` tamamlaması;
+6. durum hesap başına kayıt altına alınır; böylece ölü bir çıkış bir denemeye mal olur, tüm toplu işe değil.
 
-**Tamamlama modu.** Zaten var olan hesaplar, herhangi bir posta olmadan tamamlanabilir: `finish.js`, kayıtlı kimlik bilgileriyle **oturum açar** ve anahtarı oluşturur — zaten sahip olduğunuz bir dosyayı büyütmenin en ucuz yolu.
+**Bitirme modu.** Zaten var olan hesaplar hiç posta olmadan bitirilebilir: `finish.js` kayıtlı kimlik bilgileriyle **oturum açar** ve anahtarı oluşturur — zaten sahip olduğunuz bir dosyayı büyütmenin en ucuz yolu.
 
 ## ⚙️ CLI seçenekleri
 
@@ -153,66 +170,64 @@ Hesap başına, bir izole Chrome bağlamı (kendi vekil + depolaması):
 |---|---|
 | `mint` | `--count N` (30) · `--conc N` (3) · `--preset turbo\|balanced\|safe` (eşzamanlılık + tempo aralığı) · `--gap S` · `--idbase N` (0) · `--attempts N` (4) · `--chat-min N` · `--limit N` · `--headed` |
 | `finish` | `--conc N` · `--only 25,108` · `--attempts N` · `--limit N` · `--headed` |
-| `verify` | `--file keys.txt` · `--limit N` · `--chat` · `--proxy <bir çıkış>` |
-| `screen` | `--limit N` · `--conc N` — sağlayıcı API'sine ulaşan çıkışları saklayın |
-| `harvest` | ham akış listelerini kullanılır bir havuza dönüştürün |
+| `verify` | `--file keys.txt` · `--limit N` · `--chat` · `--proxy <one exit>` |
+| `screen` | `--limit N` · `--conc N` — yalnızca sağlayıcı API'sine ulaşan çıkışları tut |
+| `harvest` | ham besleme listelerini kullanılabilir bir havuza dönüştür |
 
-Turbo önerilir (5); bundan fazlası zayıf bilgisayarda yük/ban riski oluşturabilir.
+Turbo önerilir (5); daha fazlası zayıf bilgisayarda yük/ban riski.
 
 | Ortam değişkeni | Varsayılan | Anlamı |
 | --- | --- | --- |
-| `UPSTAGE_PROXIES` | `src/proxies.txt` | havuz dosyası, her satırda bir vekil |
+| `UPSTAGE_PROXIES` | `src/proxies.txt` | havuz dosyası, satır başına bir proxy |
 
-Ayarlar `launcher.config.json` içinde kalıcıdır; anahtarlar `keys.txt` dosyasına, her satıra bir tane olacak şekilde kaydedilir ve `%USERPROFILE%\upstage-keys.txt` konumunda bir kopyası tutulur. `node src/cli.js help` yetkili liste olur.
+Ayarlar `launcher.config.json` içinde kalıcıdır; anahtarlar `keys.txt` dosyasına satır başına bir tane olacak şekilde düşer ve `%USERPROFILE%\upstage-keys.txt` konumunda bir kopyası bulunur. `node src/cli.js help` asıl listeyi verir.
 
-## 🛰️ Bir vekil sunucu arkasında
+## 🛰️ Proxy arkasında
 
-* `src/proxies.txt` — her satırda bir çıkış (başlatıcı ve her görev `src/` klasöründen okur); `scheme://user:pass@host:port`, `scheme://host:port` veya sadece `host:port` (varsayılan `http://`). `#` işaretinden sonra gelen yorumlar ve boş satırlar yok sayılır.
-* Her çıkış, bir hesabın üzerinde zaman harcamadan önce **kullanım anında bir sorguya** tabi tutulur; ölü çıkışlar atılır ve kullanılabilir küme kuruyana kadar havuz yeniden okunmaz.
-* Arayüzünüzde hiçbir şey dinlemez: akıştaki her istek havuz üzerinden geçer.
+* `src/proxies.txt` — satır başına bir çıkış (başlatıcı ve her görev onu `src/` içinden okur); `scheme://user:pass@host:port`, `scheme://host:port` veya çıplak `host:port` (varsayılan `http://`). `#` sonrası yorumlar ve boş satırlar yok sayılır.
+* Her çıkış, bir hesap üzerinde zaman harcamadan önce **kullanım anında yoklama** alır; ölü çıkışlar düşürülür ve havuz yalnızca kullanılabilir küme tükendiğinde yeniden okunur.
+* Kendi ağ arayüzünüzde hiçbir hizmet dinlemez: akıştaki her istek havuz üzerinden gider.
 
 ## 📄 Dosyalar
 
 | Yol | İçerik |
 | --- | --- |
-| `src/keys.txt` | her satırda bir doğrulanmış anahtar — git tarafından yok sayılır, asla taahhüt edilmez |
-| `src/accounts.json` | e-posta / şifre / anahtar / hesap başına durum |
+| `src/keys.txt` | satır başına bir doğrulanmış anahtar — git tarafından yok sayılır, asla commit edilmez |
+| `src/accounts.json` | e-posta / parola / anahtar / hesap başına durum |
 | [`models.json`](src/models.json) | canlı `GET /v1/models` yanıtı — 16 kimlik |
-| `src/proxies.txt` | çıkışlarınız, her satırda bir tane — git tarafından yok sayılır |
+| `src/proxies.txt` | çıkışlarınız, satır başına bir tane — git tarafından yok sayılır |
 | `src/outputs/`, `src/out/` | ekran görüntüleri, DOM dökümleri ve çalışma durumu — git tarafından yok sayılır |
 
-## 🔌 9Router'a bağlanma
+## 🔌 9Router'a bağlan
 
-[9Router](https://9router.com), kendi sunucunuzda barındırılan, OpenAI ile uyumlu bir yönlendiricidir. Upstage OpenAI ile uyumludur, bu yüzden bir `openai-compatible` düğüm her anahtarı taşır:
+[9Router](https://9router.com) kendi kendine barındırılan, OpenAI uyumlu bir yönlendiricidir. Upstage OpenAI uyumludur, bu yüzden tek bir `openai-compatible` düğümü her anahtarı taşır:
 
 ```bash
 node src/connect-9router.js \
   --base http://localhost:20128 --password 123456 \
-  --api-key <anahtar>            # veya env NINEROUTER_API_KEY
+  --api-key <key>            # or env NINEROUTER_API_KEY
 ```
 
-Varsayılanlar: temel `http://localhost:20128`, şifre `123456`, düğüm `Upstage`, önek `upstage`, yukarı akış `https://api.upstage.ai/v1`, varsayılan model `solar-mini4`. Başka bir oluşturulan anahtarı `--name "<etiket 2>"` ile kaydedin — her anahtar, 9Router'ın yük dengesi yapabileceği başka bir bağlantı olur. Modeller daha sonra `upstage/<model kimliği>` olarak sunulur.
+Varsayılanlar: temel `http://localhost:20128`, parola `123456`, düğüm `Upstage`, önek `upstage`, üst kaynak `https://api.upstage.ai/v1`, varsayılan model `solar-mini4`. Başka bir oluşturulmuş anahtarı `--name "<label 2>"` ile kaydedin — her anahtar, 9Router'ın yük dengeleyebileceği başka bir bağlantı olur. Modeller ardından `upstage/<model id>` olarak sunulur.
 
-## 🔑 Bir anahtarın size kazandırdığı
+## 🔑 Bir anahtar size ne kazandırır
 
 | | |
 | --- | --- |
 | 🏢 Sağlayıcı | **Upstage** — [upstage.ai](https://upstage.ai) |
-| 🎁 Sağlayıcının verdiği | Hesap başına 10$ ücretsiz kredi — 16 Solar modeli, her anahtar sohbetle doğrulanmıştır |
-| 🔑 Bir anahtarın size kazandırdığı | Kendi hesabına özgü bir API anahtarı: aşağıdaki uç noktadaki 16 model kimliği, planınızın sınırları dahilinde. Kota **hesaba** bağlıdır, bu yüzden bu araç her anahtar için bir hesap oluşturur |
-| 🌐 API yapısı | OpenAI ile uyumlu: `POST https://api.upstage.ai/v1/chat/completions` |
-| 🔒 Verileriniz | yalnızca upstage.ai ve yapılandırdığınız gelen kutusu arka ucuyla iletişim kurulur; anahtarlar makinenizde kalır |
+| 🎁 Sağlayıcının verdikleri | hesap başına $10 ücretsiz kredi — 16 Solar modeli, her anahtar sohbetle doğrulanmış |
+| 🔑 Bir anahtar size ne kazandırır | kendi hesabına kapsamlı bir API anahtarı: aşağıdaki uç noktada 16 model kimliği, planınızın sınırlarında. Kota **hesapta** yaşar; bu araç tam da bu yüzden anahtar başına bir hesap oluşturur |
+| 🌐 API biçimi | OpenAI uyumlu: `POST https://api.upstage.ai/v1/chat/completions` |
+| 🔒 Verileriniz | yalnızca upstage.ai ve yapılandırdığınız gelen kutusu arka ucuna bağlantı kurulur; anahtarlar makinenizde kalır |
 
 ## 🐞 Sorunlar
 
-Başarısız olan adımı, kullanılan çıkış ve aracın standart çıktısını içeren bir sorun açın — `outputs/` içindeki dökümler (ekran görüntüleri + her adımda DOM), bir anahtarı sızdırmadan hataları yeniden üretilebilir hale getirir.
+Başarısız adımı, kullanılan çıkışı ve aracın stdout çıktısını içeren bir sorun kaydı açın — `outputs/` içindeki dökümler (her adımda ekran görüntüleri + DOM) anahtar sızdırmadan hataları yeniden üretilebilir kılar.
 
 ## 📄 Lisans
 
-MIT © 2026 — [LİSANS](LICENSE) sayfasına bakın.
+MIT © 2026 — bkz. [LICENSE](LICENSE).
 
 <div align="center">
 
-**[MIT](LICENSE)** © 2026 upstage-bulk-apikey katkıda bulunanlar
-
-</div>
+**[MIT](LICENSE)** © 2026 up

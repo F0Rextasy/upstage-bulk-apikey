@@ -30,6 +30,10 @@
 
 </div>
 
+
+
+
+
 ---
 
 ## ✨ Why this exists
@@ -63,6 +67,19 @@ node src/cli.js --verify-only     # every key in keys.txt is re-tested with a re
 |Model|✓|
 |---|---|
 |`solar-pro2`|✓|
+|`solar-mini`|✓|
+|`solar-mini-250422`|✓|
+|`solar-mini4`|✓|
+|`solar-mini4-260922`|✓|
+|`solar-pro2-251215`|✓|
+|`solar-pro3`|✓|
+|`solar-pro3-260323`|✓|
+|`solar-pro4`|✓|
+|`solar-pro4-260806`|✓|
+|`syn-pro`|✓|
+|`syn-pro-251021`|✓|
+
+2026-10-19 live re-check: 12 of the 16 catalogue ids answered a chat `200` (the other tested ids — `solar-decide`, `solar-decide-flash`, `solar-jev` — did not).
 
 Live probe of one key:
 
