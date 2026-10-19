@@ -30,9 +30,6 @@
 
 </div>
 
-
-
-
 ---
 
 ## ✨ Warum es dieses Tool gibt
