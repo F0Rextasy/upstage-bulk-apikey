@@ -30,8 +30,6 @@
 
 </div>
 
-
-
 ---
 
 ## ✨ Neden bu var
