@@ -106,7 +106,7 @@ print(client.chat.completions.create(model="solar-pro2",
 git clone https://github.com/F0Rextasy/upstage-bulk-apikey.git
 cd upstage-bulk-apikey
 
-# 1) your proxy list, one line per exit (http://, socks5://, socks4:// or bare host:port)
+# 1) your proxy list — optional, one line per exit (http://, socks5://, socks4:// or bare host:port)
 printf 'socks5://127.0.0.1:1080\n' > src/proxies.txt
 
 # 2) mailboxes — point the tool at your own mailbox (an inbox API token or IMAP):
@@ -180,9 +180,10 @@ Settings persist in `launcher.config.json`; keys land in `keys.txt`, one per lin
 
 ## 🛰️ Behind a proxy
 
-* `src/proxies.txt` — one exit per line (the launcher and every task read it from `src/`); `scheme://user:pass@host:port`, `scheme://host:port` or bare `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored.
-* Every exit gets a **point-of-use probe** before an account spends time on it; dead exits are dropped, and the pool is only re-read when the usable set runs dry.
-* Nothing listens on your own interface: every request in the flow goes through the pool.
+**Optional — recommended at scale (per-IP limits, bans).** The tool works without a proxy too.
+
+* **With a pool:** `src/proxies.txt` — one exit per line (the launcher and every task read it from `src/`); `scheme://user:pass@host:port`, `scheme://host:port` or bare `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored. Every exit gets a **point-of-use probe** before an account spends time on it; dead exits are dropped, and the pool is only re-read when the usable set runs dry — a dead line fails that attempt, never a silent fall back to direct.
+* **Without a pool:** the CLI prints `running WITHOUT a proxy (direct)` and connects directly. Nothing about sign-up, key minting or verification changes — only where the packets leave from.
 
 ## 📄 Files
 

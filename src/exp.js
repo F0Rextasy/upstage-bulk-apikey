@@ -76,7 +76,7 @@ async function main() {
   let cands = [];
   const push = (l) => {
     for (const p of l) {
-      if (p.protocol === 'socks4') continue;
+      if (!p || p.protocol === 'socks4') continue; // `null` is the direct sentinel (no pool)
       const k = `${p.protocol}://${p.host}:${p.port}`;
       if (seen.has(k)) continue;
       seen.add(k);

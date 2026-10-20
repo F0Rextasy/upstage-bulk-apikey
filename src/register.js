@@ -8,8 +8,9 @@
  *                    [--fresh-pool] [--limit 1]
  *
  * Flow per account:
- *   1. fresh mailbox (broker 9700 -> 9701) + fresh pool exit
- *   2. isolated Chrome context through that exit
+ *   1. fresh mailbox (broker 9700 -> 9701) + fresh pool exit (the pool is
+ *      optional: with no pool file at all the run goes direct)
+ *   2. isolated Chrome context through that exit (no proxy when direct)
  *   3. /login -> e-mail -> Continue -> OTP code from the mailbox
  *   4. /api-keys -> Create new key -> capture the key off the wire
  *   5. live verify (GET /v1/models, POST /v1/chat/completions)
@@ -68,7 +69,10 @@ function appendAccount(rec) {
   fs.writeFileSync(ACCOUNTS, JSON.stringify(list, null, 2));
 }
 
-/** Pool of verified exits (built by pool.js); never our own line. */
+/** Pool of verified exits (built by pool.js); never our own line. No pool file
+ *  at all is DIRECT mode: `null` is the direct sentinel — a proxy is
+ *  recommended at scale (per-IP limits, bans) but the tool works without one. */
+let upPoolNoted = false;
 function loadUpPool() {
   const files = [
   path.join(__dirname, 'proxies.txt'),
@@ -80,6 +84,13 @@ function loadUpPool() {
     try {
       list = list.concat(require('./proxy.js').loadProxyList(f));
     } catch {}
+  }
+  if (!list.length) {
+    if (!upPoolNoted) {
+      upPoolNoted = true;
+      console.log('no up-usable pool — running WITHOUT a proxy (direct). Build one with src/pool.js to route through it.');
+    }
+    return [null];
   }
   return list.filter((p) => p.protocol !== 'socks4');
 }
@@ -392,7 +403,7 @@ async function verifyKey(key) {
       const u = new URL(url);
       const payload = body ? Buffer.from(JSON.stringify(body)) : null;
       const rq = https.request(
-        { method, host: u.hostname, port: 443, path: u.pathname + u.search, agent: proxyLib.createAgent(proxy), headers: { 'User-Agent': 'upstage-mint/1.0', ...headers, ...(payload ? { 'Content-Length': payload.length } : {}) } },
+        { method, host: u.hostname, port: 443, path: u.pathname + u.search, agent: proxy ? proxyLib.createAgent(proxy) : undefined, headers: { 'User-Agent': 'upstage-mint/1.0', ...headers, ...(payload ? { 'Content-Length': payload.length } : {}) } },
         (res) => {
           let t = '';
           res.on('data', (c) => (t += c));
@@ -431,7 +442,9 @@ async function main() {
   const N = flag('--limit') ? parseInt(opt('--limit', '1'), 10) : COUNT;
   L.log(`upstage mint start: count=${N} conc=${CONC} port=${PORT}`);
   const pool = loadUpPool();
-  if (!pool.length) throw new Error('empty up-usable pool — run pool.js first');
+  // loadUpPool returns [null] (direct) when no pool file exists; an empty list
+  // here means every line was a non-browser-capable exit (socks4)
+  if (!pool.length) throw new Error('every pool line is socks4 (not browser-capable) — run pool.js first');
   L.log(`proxy pool: ${pool.length}`);
 
   await L.ensureChrome(PORT, path.join(L.HERE, `.up-chrome-${PORT}`), { headless: !HEADED });

@@ -11,7 +11,8 @@
  *   1. GET  https://api.upstage.ai/v1/models                       -> 200
  *   2. POST https://api.upstage.ai/v1/chat/completions  (solar-mini4) -> 200
  *
- * Every call exits through a pool proxy; the home line is never used.
+ * Requests go through your proxy list when one is provided (src/proxies.txt);
+ * with no pool the tool connects directly.
  */
 
 const fs = require('fs');
@@ -51,7 +52,10 @@ function loadPool() {
       out.push(p);
     }
   }
-  if (!out.length) throw new Error('no proxy pool file');
+  if (!out.length) {
+    console.log('no proxy pool file — running WITHOUT a proxy (direct). Put exits in src/proxies.txt to route through them.');
+    return [null];
+  }
   return out;
 }
 

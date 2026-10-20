@@ -4,7 +4,8 @@
 /**
  * Rescue finisher: walk already-created Upstage accounts (credentials from
  * outputs/acct*-unverified.json) through login -> terms -> create key -> live
- * verify. One browser, one isolated context per account, rotating exits.
+ * verify. One browser, one isolated context per account, rotating exits (a
+ * direct connection when no pool is provided).
  *
  *   node src/finish.js [--conc 2] [--port 9292] [--attempts 3] [--limit N] [--only 28,27]
  */
@@ -52,6 +53,7 @@ function candidates() {
   const self = await L.ownIp();
   const pool = new M.ExitPool({ selfIp: self, concurrency: 6 });
   await pool.pump(1);
+  if (!pool.cands.length) pool.noteDirect();
   L.log(`FINISH exits ready: ${pool.ready.length}`);
 
   const profile = path.join(L.HERE, `.up-chrome-${PORT}`);

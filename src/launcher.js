@@ -140,7 +140,7 @@ async function connectFlow() {
 async function main() {
   process.stdout.write('\x1b[2J\x1b[H');
   banner();
-  console.log(`  proxy exits: ${poolState() || 'none — put exits in proxies.txt'}     keys on disk: ${keyState()}\n`);
+  console.log(`  proxy exits: ${poolState() || 'none — running WITHOUT a proxy (direct)'}     keys on disk: ${keyState()}\n`);
   console.log('  1) Mint keys           create fresh accounts, one key each, verify by chat');
   console.log('  2) Finish accounts     log in to accounts already created and finish their key');
   console.log('  3) Verify keys         re-check everything in the keys file');

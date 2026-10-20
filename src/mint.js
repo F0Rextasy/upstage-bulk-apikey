@@ -8,11 +8,13 @@
  *                [--chat-min 5] [--limit N] [--attempts 4]
  *                [--preset=turbo|balanced|safe] [--gap S]
  *
- * Free-proxy exits die within minutes, so exits are screened *on demand*
- * (api.upstage.ai must answer 401 for a bogus bearer and console.upstage.ai
- * must deliver the full login page) and handed out one per account.
+ * Proxy exits [optional] (src/proxies.txt): free-proxy exits die within
+ * minutes, so exits are screened *on demand* (api.upstage.ai must answer 401
+ * for a bogus bearer and console.upstage.ai must deliver the full login page)
+ * and handed out one per account. With no pool at all every account goes
+ * direct — a proxy is recommended at scale, not required.
  *
- * One account = one fresh mailbox + one fresh exit + one isolated Chrome
+ * One account = one fresh mailbox + one exit (or direct) + one isolated Chrome
  * context. Keys land in ../keys.txt (one per line, live-verified) and the
  * account record in ../accounts.json the moment GET /v1/models answered 200.
  */
@@ -157,6 +159,7 @@ class ExitPool {
     this.screened = 0;
     this.found = 0;
     this.pumping = null;
+    this.directNoted = false;
     this.loadCandidates(false);
   }
 
@@ -250,7 +253,9 @@ class ExitPool {
             const before = this.cands.length;
             this.loadCandidates(true);
             if (this.cands.length === before) {
-              L.log(`POOL exhausted (${this.screened} screened, ${this.found} usable)`);
+              // a real pool that ran dry is logged; no pool at all is direct
+              // mode, and take() hands out the direct slot for it
+              if (this.cands.length) L.log(`POOL exhausted (${this.screened} screened, ${this.found} usable)`);
               return;
             }
           }
@@ -273,8 +278,28 @@ class ExitPool {
     return this.pumping;
   }
 
+  /** The direct slot (no pool anywhere): the one sentinel every account reuses. */
+  directSlot() {
+    return { proxy: null, ip: null, api: 0, checkedAt: Date.now() };
+  }
+
+  /** Prints the direct-mode notice once per process. */
+  noteDirect() {
+    if (this.directNoted) return;
+    this.directNoted = true;
+    console.log('no proxy pool — running WITHOUT a proxy (direct). Put exits in src/proxies.txt to route through them.');
+  }
+
   /** One exit, probed against the console right now (point-of-use). */
   async take() {
+    // Nothing to screen — no pool file (or raw list) carried a single line:
+    // DIRECT mode. A proxy is recommended at scale (per-IP limits, bans) but
+    // the tool works without one; `null` is the direct sentinel.
+    if (!this.cands.length && !this.rawLoaded) this.loadCandidates(true);
+    if (!this.cands.length) {
+      this.noteDirect();
+      return this.directSlot();
+    }
     for (let round = 0; round < 3; round++) {
       this.ready = this.ready.filter((e) => Date.now() - e.checkedAt < 180000);
 
@@ -423,6 +448,7 @@ async function main() {
   L.log(`MINT own ip: ${self || 'unknown'}`);
   const pool = new ExitPool({ selfIp: self, concurrency: 6 });
   await pool.pump(1);
+  if (!pool.cands.length) pool.noteDirect();
   L.log(`MINT initial exits: ${pool.ready.length}`);
 
   await L.ensureChrome(PORT, path.join(HERE, `.up-chrome-${PORT}`), { headless: HEADLESS });

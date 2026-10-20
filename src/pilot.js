@@ -5,7 +5,8 @@
  * Step 1 pilot: what does Upstage's signup/login flow actually look like?
  *
  * Launches Chrome on a fresh profile, opens one isolated context pinned to a
- * live pool proxy, walks login -> signup, and dumps:
+ * live pool proxy (or direct when no pool is provided), walks login -> signup,
+ * and dumps:
  *   - visible text per screen
  *   - every network request/response (to find the auth REST endpoints)
  *   - form fields + their attributes

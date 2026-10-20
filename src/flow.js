@@ -2,7 +2,7 @@
 
 /**
  * One Upstage account -> one API key, driven through an isolated Chrome
- * context pinned to a single pool exit.
+ * context pinned to a single pool exit (direct when the slot has no proxy).
  *
  *   mintAccount({ id, cdp, slot, mailbox }) -> { key, screens, apiTrace, cleanup }
  *

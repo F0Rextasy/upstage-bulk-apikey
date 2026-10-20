@@ -27,11 +27,8 @@ const EXISTING = process.env.LAB_EMAIL && process.env.LAB_PASSWORD ? { email: pr
 
   const pool = new ExitPool({ selfIp: self, concurrency: 6 });
   await pool.pump(1);
+  if (!pool.cands.length) pool.noteDirect();
   L.log(`LAB exits ready: ${pool.ready.length}`);
-  if (!pool.ready.length) {
-    L.log('LAB no exit available — abort');
-    process.exit(2);
-  }
 
   await L.ensureChrome(PORT, path.join(L.HERE, `.up-chrome-${PORT}`), { headless: !process.argv.includes('--headed') });
   let cdp = null;

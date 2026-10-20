@@ -2,11 +2,15 @@
 
 /**
  * Shared plumbing for the Upstage / Solar mint:
- *  - proxy pool (live list) + proxied HTTP with a cookie jar
+ *  - proxy pool [optional] (src/proxies.txt + the screened lists under out/)
+ *    with proxied HTTP and a cookie jar
  *  - temp-mailbox brokers (mailtrap / inboxes.com)
  *  - Chrome + CDP page driver with network capture
  *
- * Egress: every request that touches upstage goes through a pool proxy.
+ * Egress: the pool is optional — with one every request goes through an exit
+ * and a dead line fails that attempt (never a silent fall back to direct);
+ * with no pool file the tool connects directly, `null` being the direct
+ * sentinel every request layer here accepts.
  */
 
 const fs = require('fs');
@@ -76,7 +80,10 @@ const POOL_FILES = [
   path.join(__dirname, 'out', 'proxy-candidates-fresh.txt'),
 ];
 
-/** Loads the proxy pool, skipping loopback/LAN lines. */
+/** Loads the proxy pool, skipping loopback/LAN lines. With no pool file — or
+ *  none carrying a usable line — this is DIRECT mode: `null` is the direct
+ *  sentinel, and a proxy is recommended at scale (per-IP limits, bans) but the
+ *  tool works without one. */
 function loadPool() {
   const seen = new Set();
   const out = [];
@@ -96,6 +103,10 @@ function loadPool() {
       out.push(p);
     }
     if (out.length) break; // first readable file wins
+  }
+  if (!out.length) {
+    console.log('no proxy pool — running WITHOUT a proxy (direct). Put exits in src/proxies.txt to route through them.');
+    return [null];
   }
   return out;
 }
@@ -126,13 +137,15 @@ async function exitIp(proxy, timeoutMs = 12000) {
   throw lastErr || new Error('no ip echo');
 }
 
-/** Finds a pool entry that (a) tunnels and (b) is not our own line. */
+/** Finds a pool entry that (a) tunnels and (b) is not our own line. The direct
+ *  sentinel passes straight through — with no pool there is no own line to
+ *  avoid — and only a pool that is entirely dead still throws (fail-closed). */
 async function pickExit(pool, { start = 0, selfIp = null, timeoutMs = 12000 } = {}) {
   for (let i = 0; i < pool.length; i++) {
     const p = pool[(start + i) % pool.length];
     try {
       const ip = await exitIp(p, timeoutMs);
-      if (selfIp && ip === selfIp) {
+      if (selfIp && p && ip === selfIp) {
         log(`exit ${proxyLabel(p)} -> ${ip} == own line, skip`);
         continue;
       }
