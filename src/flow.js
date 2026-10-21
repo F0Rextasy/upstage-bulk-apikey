@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const L = require('./lib');
 
 const ORIGIN = L.ORIGIN;
@@ -47,7 +48,9 @@ class Flow {
     this.existing = existing || null; // { email, password } — sign in instead of sign up
     this.screens = [];
     this.apiTrace = [];
-    this.password = `${['Solar', 'Nova', 'Orbit', 'Vega'][Math.floor(Math.random() * 4)]}!${L.rand(4)}${Math.floor(Math.random() * 90 + 10)}Aa`;
+    // same shape as before (word!4 chars + 2 digits + Aa), drawn from the CSPRNG:
+    // Math.random() is predictable and this password is the only way back in
+    this.password = `${L.randomPassword()}Aa`;
     this.log = (m) => L.log(`[${id}] ${m}`);
   }
 
@@ -324,7 +327,7 @@ class Flow {
       log(`after signup: ${confirmReady}`);
       if (confirmReady === 'badpw') {
         // policy complaint: retype both password fields with a fresh, guaranteed-strong one
-        this.password = `Orbit!${L.rand(4)}${Math.floor(Math.random() * 90 + 10)}Bb9`;
+        this.password = `Orbit!${L.randHex(4)}${crypto.randomInt(10, 100)}Bb9`;
         log(`badpw -> retry with new password`);
         await this.setValue('input[name=password]', this.password);
         await this.setValue('input[name=confirmPassword], input[name*=confirm i]', this.password);

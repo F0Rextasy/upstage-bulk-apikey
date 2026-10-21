@@ -16,8 +16,8 @@ const proxyLib = require('./proxy.js');
 
 const args = process.argv.slice(2);
 const opt = (n, d) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
-const CONC = parseInt(opt('--conc', '16'), 10);
-const LIMIT = parseInt(opt('--limit', '200'), 10);
+const CONC = L.int(opt('--conc', '16'), 16);
+const LIMIT = L.int(opt('--limit', '200'), 200);
 const OUT = opt('--out', path.join(__dirname, 'out', 'up-api-ok.txt'));
 
 const FILES = [

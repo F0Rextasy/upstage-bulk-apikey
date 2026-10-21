@@ -12,14 +12,15 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const proxyLib = require('./proxy.js');
+const { int } = require('./lib.js');
 
 const args = process.argv.slice(2);
 const opt = (n, d) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
 const FILE = args[0];
-const CONC = parseInt(opt('--conc', '24'), 10);
-const TO = parseInt(opt('--timeout', '15000'), 10);
+const CONC = int(opt('--conc', '24'), 24);
+const TO = int(opt('--timeout', '15000'), 15000);
 const URL_ = opt('--url', 'https://console.upstage.ai/login');
-const MIN = parseInt(opt('--min', '40000'), 10);
+const MIN = int(opt('--min', '40000'), 40000);
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
 
 function get(proxy, url, timeoutMs = TO) {

@@ -33,6 +33,11 @@ const DEFAULT_TIMEOUT_MS = 35000;
 // full handshake budget starve the CPE for the whole batch (measured: 651
 // sockets in SYN_SENT, mostly our own screens, while ICMP was clean).
 const DEFAULT_CONNECT_TIMEOUT_MS = 8000;
+// A proxy that streams garbage instead of a reply must not be able to grow the
+// handshake buffer until the handshake timeout: measured on 2026-10-21, a mock
+// proxy writing 3 MiB cost +76.6 MiB of external memory and ended only at the
+// 6 s timeout; with this cap the same run fails in 3 ms with +0.2 MiB.
+const MAX_CONNECT_HEADER_BYTES = 16384;
 
 /** Accepted line shapes:
  *    host:port
@@ -216,7 +221,10 @@ function connectHttpProxy(proxy, { host, port, timeoutMs = DEFAULT_TIMEOUT_MS })
     const onData = (chunk) => {
       buffer = Buffer.concat([buffer, chunk]);
       const end = buffer.indexOf('\r\n\r\n');
-      if (end === -1) return;
+      if (end === -1) {
+        if (buffer.length > MAX_CONNECT_HEADER_BYTES) return fail(new Error(`proxy CONNECT header too large (${label(proxy)})`));
+        return;
+      }
       socket.removeListener('data', onData);
       clearTimeout(timer);
       const head = buffer.slice(0, end).toString('latin1');
@@ -300,6 +308,11 @@ function connectSocks5(proxy, { host, port, timeoutMs = DEFAULT_TIMEOUT_MS }) {
       if (buffer.length < 4) return;
       const rep = buffer[1];
       const atyp = buffer[3];
+      // the domain length is the 5th byte: without it `7 + undefined` is NaN,
+      // `buffer.length < NaN` is false, and a reply split after its 4th byte was
+      // handed to the caller as a working tunnel (the raw reply came back as the
+      // first read).
+      if (atyp === 0x03 && buffer.length < 5) return;
       const need = atyp === 0x01 ? 10 : atyp === 0x04 ? 22 : 7 + buffer[4];
       if (buffer.length < need) return;
       if (rep !== 0x00) {
@@ -310,6 +323,9 @@ function connectSocks5(proxy, { host, port, timeoutMs = DEFAULT_TIMEOUT_MS }) {
       const rest = buffer.slice(need);
       if (settled) return;
       settled = true;
+      // hand the tunnel over: the reader would otherwise keep copying every byte
+      // of the tunnel into its own buffer for the life of the socket
+      socket.removeListener('data', onData);
       if (rest.length) socket.unshift(rest);
       resolve(socket);
     };
@@ -349,7 +365,7 @@ function connectSocks4(proxy, { host, port, timeoutMs = DEFAULT_TIMEOUT_MS }) {
     socket.setNoDelay(true);
 
     let buffer = Buffer.alloc(0);
-    socket.on('data', (chunk) => {
+    const onData = (chunk) => {
       buffer = Buffer.concat([buffer, chunk]);
       if (buffer.length < 8) return;
       clearTimeout(timer);
@@ -357,9 +373,11 @@ function connectSocks4(proxy, { host, port, timeoutMs = DEFAULT_TIMEOUT_MS }) {
       const rest = buffer.slice(8);
       if (settled) return;
       settled = true;
+      socket.removeListener('data', onData); // see connectSocks5: the reader must let go
       if (rest.length) socket.unshift(rest);
       resolve(socket);
-    });
+    };
+    socket.on('data', onData);
 
     socket.on('connect', () => {
       const user = Buffer.from(proxy.username || '');

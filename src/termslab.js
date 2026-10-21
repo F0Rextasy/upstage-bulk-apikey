@@ -94,7 +94,8 @@ const EXISTING = process.env.LAB_EMAIL && process.env.LAB_PASSWORD ? { email: pr
   if (res && res.halt) {
     fs.writeFileSync(
       LABFILE,
-      JSON.stringify({ port: PORT, id: ID, state: 'halted-terms', email: res.email, password: res.password, ts: new Date().toISOString() }, null, 2)
+      JSON.stringify({ port: PORT, id: ID, state: 'halted-terms', email: res.email, password: res.password, ts: new Date().toISOString() }, null, 2),
+      { mode: 0o600 } // the record holds the account password
     );
     L.log(`LAB READY at terms — drive with: node src/termsctl.js eval "…"  (state: outputs/lab-state.json)`);
     try {

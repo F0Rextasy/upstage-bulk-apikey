@@ -52,13 +52,19 @@ const PRESET = resolvePreset({
   defaultConc: 3,
 });
 const GAP_MS = PRESET.gap == null ? null : Math.max(0, PRESET.gap) * 1000;
-const COUNT = parseInt(opt('--count', '30'), 10);
-const CONC = Math.max(1, parseInt(opt('--conc', String(PRESET.conc)), 10));
-const PORT = parseInt(opt('--port', '9290'), 10);
-const CHAT_MIN = parseInt(opt('--chat-min', '5'), 10);
-const ATTEMPTS = parseInt(opt('--attempts', '4'), 10);
-const LIMIT = flag('--limit') ? parseInt(opt('--limit', '1'), 10) : COUNT;
-const IDBASE = parseInt(opt('--idbase', '0'), 10);
+if (!Number.isFinite(GAP_MS) && GAP_MS !== null) {
+  console.error(`--gap needs a number of seconds, got ${JSON.stringify(gapArg)}`);
+  process.exit(2);
+}
+// a bare flag (`--count` with nothing behind it, or an empty shell variable)
+// used to parse as NaN: NaN workers, "MINT 0/NaN OK", exit 0
+const COUNT = L.int(opt('--count', '30'), 30);
+const CONC = Math.max(1, L.int(opt('--conc', String(PRESET.conc)), Number(PRESET.conc) || 3));
+const PORT = L.int(opt('--port', '9290'), 9290);
+const CHAT_MIN = L.int(opt('--chat-min', '5'), 5);
+const ATTEMPTS = L.int(opt('--attempts', '4'), 4);
+const LIMIT = flag('--limit') ? L.int(opt('--limit', '1'), 1) : COUNT;
+const IDBASE = L.int(opt('--idbase', '0'), 0);
 const HEADLESS = !flag('--headed') && process.env.SD_HEADLESS !== '0';
 // Live console: keys landed in this run.
 let okCount = 0;
@@ -78,12 +84,13 @@ const withDeadline = (promise, ms) => Promise.race([promise.catch(() => null), s
 function readState() {
   return L.readJson(STATE, { done: {}, chatVerified: 0, screened: 0, exitsFound: 0 });
 }
+
 function writeState(s) {
-  fs.writeFileSync(STATE, JSON.stringify(s, null, 2));
+  fs.writeFileSync(STATE, JSON.stringify(s, null, 2), { mode: 0o600 });
 }
 
 function appendKey(key) {
-  if (!fs.existsSync(KEYS_TXT)) fs.writeFileSync(KEYS_TXT, '');
+  if (!fs.existsSync(KEYS_TXT)) fs.writeFileSync(KEYS_TXT, '', { mode: 0o600 });
   const have = new Set(fs.readFileSync(KEYS_TXT, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter(Boolean));
   if (have.has(key)) return false;
   fs.appendFileSync(KEYS_TXT, key + '\n');
@@ -94,9 +101,14 @@ function appendKey(key) {
 }
 
 function appendAccount(rec) {
-  const list = fs.existsSync(ACCOUNTS) ? L.readJson(ACCOUNTS, []) : [];
+  // accounts.json is the only copy of every account's password and mailbox:
+  // reading an unparsable file as "[]" and writing one record over it threw the
+  // whole history away, so refuse instead of overwriting
+  const exists = fs.existsSync(ACCOUNTS);
+  const list = exists ? L.readJson(ACCOUNTS, null) : [];
+  if (list === null) throw new Error(`${ACCOUNTS} is not readable JSON — refusing to overwrite it (move it aside first)`);
   list.push(rec);
-  fs.writeFileSync(ACCOUNTS, JSON.stringify(list, null, 2));
+  fs.writeFileSync(ACCOUNTS, JSON.stringify(list, null, 2), { mode: 0o600 });
 }
 
 // -------------------------------------------------------------- proxy pool
@@ -140,6 +152,14 @@ const POOL_FILE_NAMES = [
   'up-usable.txt.prev',
 ];
 
+/** The same list as absolute paths, with the pool file the READMEs document
+ *  (`UPSTAGE_PROXIES`) in front when it is set — an ignored pool knob is how a
+ *  run ends up on the home line without the operator noticing. */
+function poolFiles() {
+  const files = POOL_FILE_NAMES.map((f) => path.join(OUTS, f));
+  return process.env.UPSTAGE_PROXIES ? [path.resolve(process.env.UPSTAGE_PROXIES), ...files] : files;
+}
+
 /**
  * Keeps a small stock of freshly screened exits. Candidates come from the
  * pool files (newest first) and then from the raw feed lists; every candidate
@@ -160,6 +180,7 @@ class ExitPool {
     this.found = 0;
     this.pumping = null;
     this.directNoted = false;
+    this.blankFiles = [];
     this.loadCandidates(false);
   }
 
@@ -182,9 +203,13 @@ class ExitPool {
    * scan of those lists, so the mint does not duplicate that work.
    */
   loadCandidates(withRaw) {
-    for (const f of POOL_FILE_NAMES) {
+    for (const f of poolFiles()) {
       try {
-        this.addAll(proxyLib.loadPoolFile(path.join(OUTS, f)), { window: 180000 });
+        const list = proxyLib.loadPoolFile(f);
+        // the file is there, the lines are not usable (socks4, junk): the run
+        // must be able to say so instead of just going direct
+        if (!list.length && fs.existsSync(f)) this.blankFiles.push(path.basename(f));
+        this.addAll(list, { window: 180000 });
       } catch {}
     }
     if (!withRaw || this.rawLoaded) return this.cands.length;
@@ -211,11 +236,17 @@ class ExitPool {
 
   async checkOne(p) {
     this.screened++;
-    // console page only — the exit must be fresh when it is handed out, so the
-    // optional api/exit-ip metadata is collected after the account has started
+    // console page first — a live line on a flapping path can take ~30 s
     const okConsole = await withDeadline(consoleCheck(p, 18000), 22000);
     if (!okConsole) return null;
-    const ip = p._lastIp || null;
+    // then the egress address, once per survivor: a transparent "proxy" passes
+    // every TLS test and still presents the home line, and this field used to be
+    // a constant null that the log printed as `ip=?`
+    const ip = (await withDeadline(L.exitIp(p, 12000), 15000)) || null;
+    if (this.selfIp && ip === this.selfIp) {
+      L.log(`POOL own line ${L.proxyLabel(p)} — skipped`);
+      return null;
+    }
     this.found++;
     try {
       fs.appendFileSync(path.join(OUTS, 'upstage-console-live.txt'), `${proxyLib.browserUrl(p)}\n`);
@@ -231,9 +262,9 @@ class ExitPool {
         while (this.ready.length < want) {
           // pull in anything new that landed in the pool files meanwhile
           const freshList = [];
-          for (const f of POOL_FILE_NAMES) {
+          for (const f of poolFiles()) {
             try {
-              freshList.push(...proxyLib.loadPoolFile(path.join(OUTS, f)));
+              freshList.push(...proxyLib.loadPoolFile(f));
             } catch {}
           }
           const added = [];
@@ -288,6 +319,9 @@ class ExitPool {
     if (this.directNoted) return;
     this.directNoted = true;
     console.log('no proxy pool — running WITHOUT a proxy (direct). Put exits in src/proxies.txt to route through them.');
+    // "no pool file" and "a pool file with nothing usable in it" are different
+    // problems: the second one is a typo, not an empty pool
+    if (this.blankFiles.length) console.log(`  (pool file(s) present but no usable line: ${[...new Set(this.blankFiles)].join(', ')})`);
   }
 
   /** One exit, probed against the console right now (point-of-use). */
@@ -390,9 +424,10 @@ function apiCall(proxy, method, url, { headers = {}, body, timeoutMs = 40000 } =
 /** Proxy candidates for verification: everything the pool knows plus the pool files. */
 function verifyProxies(pool) {
   const out = pool.ready.map((e) => e.proxy);
-  for (const f of ['upstage-api-live.txt', 'up-api-ok.txt', 'union-live.txt', 'upstage-live.txt', 'up-usable.txt', 'new-live.txt', 'up-usable.txt.prev']) {
+  const files = ['upstage-api-live.txt', 'up-api-ok.txt', 'union-live.txt', 'upstage-live.txt', 'up-usable.txt', 'new-live.txt', 'up-usable.txt.prev'].map((f) => path.join(OUTS, f));
+  for (const f of process.env.UPSTAGE_PROXIES ? [path.resolve(process.env.UPSTAGE_PROXIES), ...files] : files) {
     try {
-      out.push(...proxyLib.loadPoolFile(path.join(OUTS, f)));
+      out.push(...proxyLib.loadPoolFile(f));
     } catch {}
   }
   return out;
@@ -546,7 +581,7 @@ async function main() {
           const v = await verifyKey(res.key, { chat, pool });
           if (!v.ok) {
             errors.push(`#${id} unverified key: ${v.note || v.status}`);
-            fs.writeFileSync(path.join(L.OUT, `acct${id}-unverified.json`), JSON.stringify({ ...res, key: res.key }, null, 2));
+            fs.writeFileSync(path.join(L.OUT, `acct${id}-unverified.json`), JSON.stringify({ ...res, key: res.key }, null, 2), { mode: 0o600 });
             L.log(`[${id}] KEY UNVERIFIED ${v.note || v.status}`);
             made = true; // account exists; key just did not verify — do not re-mint
             break;
@@ -605,11 +640,13 @@ async function main() {
   await Promise.all(Array.from({ length: Math.min(CONC, N) }, worker));
   const nKeys = fs.existsSync(KEYS_TXT) ? fs.readFileSync(KEYS_TXT, 'utf8').split(/\r?\n/).filter(Boolean).length : 0;
   L.log(`MINT done. keys=${nKeys} screened=${pool.screened} exitsFound=${pool.found}`);
-  console.log(`MINT ${okCount}/${N} OK`);
+  console.log(`MINT ${okCount}/${N} ${okCount >= N ? 'OK' : '— short of the target'}`);
   if (errors.length) {
     L.log(`MINT errors:\n` + errors.join('\n'));
     fs.writeFileSync(path.join(L.OUT, 'mint-errors.txt'), errors.join('\n'));
   }
+  // a batch that produced nothing must not look like a success to a driver
+  if (okCount < N) process.exitCode = 1;
   try {
     cdp.close();
   } catch {}

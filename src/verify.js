@@ -35,10 +35,11 @@ const POOL = [
   path.join(__dirname, 'out', 'proxy-live-pool-live.txt'),
 ];
 
-function loadPool() {
+/** The pool: `--proxy-list`, then `UPSTAGE_PROXIES`, then the built-in files. */
+function loadPool(files) {
   const seen = new Set();
   const out = [];
-  for (const f of POOL) {
+  for (const f of files) {
     let list = [];
     try {
       list = proxyLib.loadPoolFile(f);
@@ -57,6 +58,13 @@ function loadPool() {
     return [null];
   }
   return out;
+}
+
+/** `--proxy-list <file>` is documented in the header and used to be ignored:
+ *  the keys were then re-checked from the home line without a word. */
+function poolFiles() {
+  const extra = [opt('--proxy-list'), process.env.UPSTAGE_PROXIES].filter(Boolean).map((f) => path.resolve(f));
+  return [...extra, ...POOL];
 }
 
 function req(proxy, method, url, { headers = {}, body, timeoutMs = 30000 } = {}) {
@@ -108,7 +116,7 @@ async function chat(key, proxy, model = 'solar-mini4') {
 }
 
 async function main() {
-  const pool = loadPool();
+  const pool = loadPool(poolFiles());
   let keys = [];
   if (opt('--file')) {
     keys = fs.readFileSync(opt('--file'), 'utf8').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
@@ -124,6 +132,12 @@ async function main() {
   let i = 0;
   let ok = 0;
   for (const key of keys) {
+    // a --proxy value that does not parse used to mean "no proxy", i.e. the
+    // request left from the home line while the flag said otherwise
+    if (opt('--proxy') && !proxyLib.parseProxy(opt('--proxy'))) {
+      console.error(`--proxy did not parse: ${opt('--proxy')} (use scheme://host:port)`);
+      process.exit(2);
+    }
     const proxy = opt('--proxy') ? proxyLib.parseProxy(opt('--proxy')) : pool[i++ % pool.length];
     const label = `${key.slice(0, 4)}…${key.slice(-4)}`;
     let line = `${label}  proxy=${proxyLib.label(proxy)}`;

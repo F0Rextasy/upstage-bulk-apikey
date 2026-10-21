@@ -16,6 +16,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const https = require('https');
 const http = require('http');
@@ -58,6 +59,17 @@ const BROKER_MAILTRAP = 'http://127.0.0.1:9700';
 const BROKER_INBOXES = 'http://127.0.0.1:9701';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** `parseInt` for a CLI flag: a flag typed bare (`--count` with no value, or an
+ *  empty shell variable) yields NaN, and a NaN count silently ran zero workers. */
+const int = (value, fallback) => {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+/** Short non-guessable token: `rand()` is Math.random() and is fine for names,
+ *  never for a password. */
+const randHex = (n) => crypto.randomBytes(Math.ceil(n / 2)).toString('hex').slice(0, n);
 const rand = (n) => Math.random().toString(36).slice(2, 2 + n);
 const now = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 
@@ -83,18 +95,27 @@ const POOL_FILES = [
 /** Loads the proxy pool, skipping loopback/LAN lines. With no pool file — or
  *  none carrying a usable line — this is DIRECT mode: `null` is the direct
  *  sentinel, and a proxy is recommended at scale (per-IP limits, bans) but the
- *  tool works without one. */
+ *  tool works without one.
+ *
+ *  `UPSTAGE_PROXIES` (the pool file the READMEs document) is read first: a user
+ *  who points it at his own pool must not end up on the home line because the
+ *  code only ever opened its built-in paths. */
 function loadPool() {
+  const files = process.env.UPSTAGE_PROXIES ? [path.resolve(process.env.UPSTAGE_PROXIES), ...POOL_FILES] : POOL_FILES;
   const seen = new Set();
   const out = [];
-  for (const f of POOL_FILES) {
+  const blank = [];
+  for (const f of files) {
     let list = [];
     try {
       list = fs.existsSync(f) ? proxyLib.loadPoolFile(f) : [];
     } catch {
       continue;
     }
-    if (!list.length) continue;
+    if (!list.length) {
+      if (fs.existsSync(f)) blank.push(path.basename(f)); // present, no usable line
+      continue;
+    }
     for (const p of list) {
       if (proxyLib.isLocalHost && proxyLib.isLocalHost(p.host)) continue;
       const key = `${p.protocol}://${p.host}:${p.port}`;
@@ -106,6 +127,7 @@ function loadPool() {
   }
   if (!out.length) {
     console.log('no proxy pool — running WITHOUT a proxy (direct). Put exits in src/proxies.txt to route through them.');
+    if (blank.length) console.log(`  (a pool file was there but carried no usable line: ${blank.join(', ')})`);
     return [null];
   }
   return out;
@@ -281,7 +303,7 @@ async function brokerJson(base, pathname, { method = 'GET', timeoutMs = 45000, b
 function persistMailbox(mb) {
   try {
     fs.mkdirSync(OUT, { recursive: true });
-    fs.appendFileSync(path.join(OUT, 'mailboxes.jsonl'), JSON.stringify({ ts: now(), ...mb }) + '\n');
+    fs.appendFileSync(path.join(OUT, 'mailboxes.jsonl'), JSON.stringify({ ts: now(), ...mb }) + '\n', { mode: 0o600 }); // mailbox tokens
   } catch {}
 }
 
@@ -484,6 +506,7 @@ function launchChrome(port, profileDir, { headless = true } = {}) {
   // locale come from this profile's index. SD_UA / SD_UA_POOL pin a UA instead.
   const fp = fingerprintForSeed(profileDir);
   const flags = [
+    ...lean, // the memory trim chrome-flags.js measured: it was computed and dropped
     headless ? '--headless=new' : '--start-maximized',
     // A headless run must not advertise `HeadlessChrome`.
     ...(headless ? [`--user-agent=${fp.userAgent || uaPin()}`] : []),
@@ -733,9 +756,11 @@ async function clickUntil(page, finder, checkExpr, { attempts = 12, gapMs = 1100
   return false;
 }
 
+/** State/record files: `saveJson` is used for account state, so keep them
+ *  readable by this user only. */
 function saveJson(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+  fs.writeFileSync(file, JSON.stringify(data, null, 2), { mode: 0o600 });
 }
 
 function readJson(file, fallback = null) {
@@ -748,7 +773,7 @@ function readJson(file, fallback = null) {
 
 function randomPassword() {
   const words = ['Solar', 'Polaris', 'Nova', 'Lumen', 'Delta', 'Orbit', 'Quartz', 'Vega', 'Juno', 'Kappa'];
-  return `${words[Math.floor(Math.random() * words.length)]}!${rand(4)}${Math.floor(Math.random() * 90 + 10)}`;
+  return `${words[crypto.randomInt(words.length)]}!${randHex(4)}${crypto.randomInt(10, 100)}`;
 }
 
 module.exports = {
@@ -784,8 +809,9 @@ module.exports = {
   ensureChrome,
   Page,
   openContext,
-  clickUntil,
   saveJson,
+  int,
+  randHex,
   readJson,
   randomPassword,
   proxyLib,

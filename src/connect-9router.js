@@ -39,14 +39,17 @@ const DEFAULTS = {
   defaultModel: 'solar-mini4',
 };
 
+/** Logs in. `getSetCookie()` only exists on Node >= 18.14 (undici 5.19): the
+ *  fallback matters because without a cookie the login still reports ok and
+ *  every later call 401s on an older 18.x. */
 async function login9router(base, password) {
   const res = await fetch(`${base}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
     body: JSON.stringify({ password: password ?? DEFAULTS.password }),
   });
-  const sc = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
-  const cookie = sc.map((c) => c.split(';')[0]).join('; ');
+  const sc = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [res.headers.get('set-cookie')].filter(Boolean);
+  const cookie = sc.map((c) => String(c).split(';')[0]).join('; ');
   return { ok: res.ok, cookie, body: (await res.text()).slice(0, 200) };
 }
 

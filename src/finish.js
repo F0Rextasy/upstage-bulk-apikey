@@ -18,10 +18,12 @@ const signup = require('./flow');
 
 const args = process.argv.slice(2);
 const opt = (n, d) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
-const CONC = parseInt(opt('--conc', '2'), 10);
-const PORT = parseInt(opt('--port', '9292'), 10);
-const ATTEMPTS = parseInt(opt('--attempts', '3'), 10);
-const LIMIT = parseInt(opt('--limit', '0'), 10);
+// bare flags used to parse as NaN: NaN attempts meant every account gave up
+// without a single try, NaN workers meant a run that did nothing
+const CONC = L.int(opt('--conc', '2'), 2);
+const PORT = L.int(opt('--port', '9292'), 9292);
+const ATTEMPTS = L.int(opt('--attempts', '3'), 3);
+const LIMIT = L.int(opt('--limit', '0'), 0);
 const ONLY = opt('--only', '');
 const STATE = path.join(L.OUT, 'finish-state.json');
 
@@ -106,7 +108,7 @@ function candidates() {
           if (!res || !res.key) throw new Error('no key');
           const v = await M.verifyKey(res.key, { chat: true, pool });
           if (!v.ok) {
-            fs.writeFileSync(path.join(L.OUT, `finish${c.id}-unverified.json`), JSON.stringify({ email: c.email, key: res.key, verify: v }, null, 2));
+            fs.writeFileSync(path.join(L.OUT, `finish${c.id}-unverified.json`), JSON.stringify({ email: c.email, key: res.key, verify: v }, null, 2), { mode: 0o600 });
             L.log(`[${c.id}] KEY UNVERIFIED ${v.status || ''} ${v.note || ''}`.slice(0, 220));
             made = true;
             break;
@@ -160,7 +162,8 @@ function candidates() {
   try {
     cdp.close();
   } catch {}
-  process.exit(0);
+  // a list that produced no key is a failure (an empty list is not)
+  process.exit(!list.length || keys ? 0 : 1);
 })().catch((e) => {
   L.log(`FINISH fatal: ${e.stack || e.message}`);
   process.exit(1);

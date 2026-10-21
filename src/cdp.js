@@ -49,7 +49,7 @@ class RawWebSocket extends EventEmitter {
     this.timeoutMs = timeoutMs;
     this.buffer = Buffer.alloc(0);
     this.connected = false;
-    this._queue = [];
+    this._fragments = []; // payloads of a message split over several frames
   }
 
   connect() {
@@ -109,7 +109,12 @@ class RawWebSocket extends EventEmitter {
           this.connected = true;
           this.socket = socket;
           clearTimeout(timer);
-          if (this.buffer.length) this._parse(this.buffer);
+          // the leftover was parsed twice before: _parse() concatenates its own
+          // buffer with the chunk, so passing the buffer as the chunk duplicated
+          // the first message after the upgrade
+          const leftover = this.buffer;
+          this.buffer = Buffer.alloc(0);
+          if (leftover.length) this._parse(leftover);
           resolve(this);
           return;
         }
@@ -123,6 +128,7 @@ class RawWebSocket extends EventEmitter {
     while (this.buffer.length >= 2) {
       const b0 = this.buffer[0];
       const b1 = this.buffer[1];
+      const fin = (b0 & 0x80) !== 0;
       const opcode = b0 & 0x0f;
       const masked = (b1 & 0x80) !== 0;
       let len = b1 & 0x7f;
@@ -150,8 +156,17 @@ class RawWebSocket extends EventEmitter {
       }
       this.buffer = this.buffer.slice(offset + len);
 
-      if (opcode === 0x1) {
-        this.emit('message', payload.toString('utf8'));
+      if (opcode === 0x1 || opcode === 0x0) {
+        // a CDP message may be split over several frames (Chrome and the
+        // cloud-browser proxies do it for large payloads): emit only on FIN —
+        // the half message used to fail JSON.parse and the command then sat
+        // until its 45 s timeout
+        this._fragments.push(payload);
+        if (fin) {
+          const text = this._fragments.length === 1 ? this._fragments[0] : Buffer.concat(this._fragments);
+          this._fragments = [];
+          this.emit('message', text.toString('utf8'));
+        }
       } else if (opcode === 0x8) {
         this.emit('close');
         this.socket && this.socket.end();
@@ -187,7 +202,7 @@ class CDP extends EventEmitter {
     this.opts = opts;
     this._id = 0;
     this._pending = new Map();
-    this._sessions = new Map();
+
     this._listeners = new Map();
     this.defaultSessionId = null;
   }
@@ -209,8 +224,9 @@ class CDP extends EventEmitter {
       return;
     }
     if (msg.id !== undefined && this._pending.has(msg.id)) {
-      const { resolve, reject } = this._pending.get(msg.id);
+      const { resolve, reject, timer } = this._pending.get(msg.id);
       this._pending.delete(msg.id);
+      clearTimeout(timer); // a resolved command must not leave a 45 s timer alive
       if (msg.error) reject(Object.assign(new Error(msg.error.message), { data: msg.error.data, code: msg.error.code }));
       else resolve(msg.result);
       return;
@@ -229,14 +245,14 @@ class CDP extends EventEmitter {
     const payload = { id, method, params };
     if (sessionId) payload.sessionId = sessionId;
     return new Promise((resolve, reject) => {
-      this._pending.set(id, { resolve, reject });
-      this.ws.send(JSON.stringify(payload));
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (this._pending.has(id)) {
           this._pending.delete(id);
           reject(new Error(`CDP timeout: ${method}`));
         }
       }, this.opts.commandTimeoutMs || 45000);
+      this._pending.set(id, { resolve, reject, timer });
+      this.ws.send(JSON.stringify(payload));
     });
   }
 

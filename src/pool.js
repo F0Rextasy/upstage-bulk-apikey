@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const proxyLib = require('./proxy.js');
+const { int } = require('./lib.js');
 
 function parseArgs(argv) {
   const a = {};
@@ -26,9 +27,11 @@ function parseArgs(argv) {
   return a;
 }
 const args = parseArgs(process.argv.slice(2));
-const LIMIT = parseInt(args.candidates || '4000', 10);
-const CONC = parseInt(args.conc || '30', 10);
-const TO = parseInt(args.timeout || '20000', 10);
+// `--candidates --conc` used to read the next flag as the value: NaN everywhere,
+// an empty candidate list, and the output file truncated
+const LIMIT = int(args.candidates, 4000);
+const CONC = int(args.conc, 30);
+const TO = int(args.timeout, 20000);
 const OUT = args.out || path.join(__dirname, 'out', 'up-usable.txt');
 const LISTS = path.join(__dirname, 'lists-fresh');
 const OUTS = path.join(__dirname, 'out');

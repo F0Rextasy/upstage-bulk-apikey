@@ -24,9 +24,9 @@ const proxyLib = require('./proxy.js');
 
 const args = process.argv.slice(2);
 const opt = (n, d) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
-const CONC = parseInt(opt('--conc', '6'), 10);
-const PROBES = parseInt(opt('--probes', '3'), 10);
-const GAP = parseInt(opt('--gap', '20000'), 10);
+const CONC = L.int(opt('--conc', '6'), 6);
+const PROBES = L.int(opt('--probes', '3'), 3);
+const GAP = L.int(opt('--gap', '20000'), 20000);
 const SLEEP = L.sleep;
 
 const OUTS = path.join(__dirname, 'out');

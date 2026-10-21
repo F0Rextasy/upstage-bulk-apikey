@@ -24,8 +24,8 @@ const proxyLib = require('./proxy.js');
 
 const args = process.argv.slice(2);
 const opt = (n, d) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
-const CONC = parseInt(opt('--conc', '64'), 10);
-const ROUNDS = parseInt(opt('--rounds', '0'), 10);
+const CONC = L.int(opt('--conc', '64'), 64);
+const ROUNDS = L.int(opt('--rounds', '0'), 0);
 const OUT = opt('--out', path.join(__dirname, 'out', 'upstage-live.txt'));
 const API_OUT = opt('--api-out', path.join(__dirname, 'out', 'upstage-api-live.txt'));
 const OUTS = path.join(__dirname, 'out');

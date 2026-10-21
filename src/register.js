@@ -30,9 +30,11 @@ const L = require('./lib');
 const args = process.argv.slice(2);
 const opt = (n, d) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
 const flag = (n) => args.includes(n);
-const COUNT = parseInt(opt('--count', '30'), 10);
-const CONC = parseInt(opt('--conc', '4'), 10);
-const PORT = parseInt(opt('--port', '9290'), 10);
+// a bare flag used to parse as NaN: NaN ids made the worker loop below run
+// forever (id >= NaN is never true)
+const COUNT = L.int(opt('--count', '30'), 30);
+const CONC = L.int(opt('--conc', '4'), 4);
+const PORT = L.int(opt('--port', '9290'), 9290);
 const HEADED = flag('--headed');
 const KEEP_OPEN = flag('--keep-open');
 
@@ -50,13 +52,14 @@ function readState() {
     return { accounts: [] };
   }
 }
+
 function writeState(s) {
-  fs.writeFileSync(STATE, JSON.stringify(s, null, 2));
+  fs.writeFileSync(STATE, JSON.stringify(s, null, 2), { mode: 0o600 });
 }
 
 /** Keys are only ever written after the API answered 200 for them. */
 function appendKey(key) {
-  if (!fs.existsSync(KEYS_TXT)) fs.writeFileSync(KEYS_TXT, '');
+  if (!fs.existsSync(KEYS_TXT)) fs.writeFileSync(KEYS_TXT, '', { mode: 0o600 });
   const have = new Set(fs.readFileSync(KEYS_TXT, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter(Boolean));
   if (have.has(key)) return;
   fs.appendFileSync(KEYS_TXT, key + '\n');
@@ -64,9 +67,18 @@ function appendKey(key) {
 }
 
 function appendAccount(rec) {
-  const list = fs.existsSync(ACCOUNTS) ? JSON.parse(fs.readFileSync(ACCOUNTS, 'utf8')) : [];
+  // accounts.json is the only copy of the account's password: never overwrite a
+  // file this process could not read
+  let list = [];
+  if (fs.existsSync(ACCOUNTS)) {
+    try {
+      list = JSON.parse(fs.readFileSync(ACCOUNTS, 'utf8'));
+    } catch (e) {
+      throw new Error(`${ACCOUNTS} is not readable JSON — refusing to overwrite it (${e.message})`);
+    }
+  }
   list.push(rec);
-  fs.writeFileSync(ACCOUNTS, JSON.stringify(list, null, 2));
+  fs.writeFileSync(ACCOUNTS, JSON.stringify(list, null, 2), { mode: 0o600 });
 }
 
 /** Pool of verified exits (built by pool.js); never our own line. No pool file
@@ -75,10 +87,11 @@ function appendAccount(rec) {
 let upPoolNoted = false;
 function loadUpPool() {
   const files = [
-  path.join(__dirname, 'proxies.txt'),
+    path.join(__dirname, 'proxies.txt'),
     path.join(__dirname, 'out', 'up-usable.txt'),
     ...['up-usable-2.txt', 'up-usable-3.txt'].map((f) => path.join(__dirname, 'out', f)),
   ];
+  if (process.env.UPSTAGE_PROXIES) files.unshift(path.resolve(process.env.UPSTAGE_PROXIES)); // the file the READMEs document
   let list = [];
   for (const f of files) {
     try {
@@ -422,24 +435,32 @@ async function verifyKey(key) {
       rq.end();
     });
 
+  let lastBad = null;
   for (let i = 0; i < 6; i++) {
     const proxy = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
     try {
       const m = await call(proxy, 'GET', `${L.API_BASE}/models`, { Authorization: `Bearer ${key}` });
-      if (m.status !== 200) return { ok: false, status: m.status, note: (m.text || '').slice(0, 150) };
+      if (m.status === 401) return { ok: false, invalid: true, status: 401, note: (m.text || '').slice(0, 150) };
+      if (m.status !== 200) {
+        // 403/429/5xx is the exit, not the key (the same rule mint.verifyKey
+        // follows): rotating, instead of stamping a good key "not verified"
+        lastBad = { status: m.status, note: (m.text || '').slice(0, 150), proxy: proxyLib.label(proxy) };
+        continue;
+      }
       const models = (m.json && m.json.data ? m.json.data : []).map((x) => x.id);
       const c = await call(proxy, 'POST', `${L.API_BASE}/chat/completions`, { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, { model: 'solar-mini4', messages: [{ role: 'user', content: 'reply with the word ok' }], max_tokens: 8 });
       return { ok: true, models, chat: c.status, reply: c.json && c.json.choices ? c.json.choices[0].message.content.slice(0, 40) : null, proxy: proxyLib.label(proxy) };
     } catch (e) {
-      if (i === 5) return { ok: false, note: `net: ${e.message.slice(0, 100)}` };
+      lastBad = { status: null, note: `net: ${e.message.slice(0, 100)}` };
     }
   }
+  return lastBad ? { ok: false, ...lastBad } : { ok: false, note: 'no exit answered' };
 }
 
 // --------------------------------------------------------------------- runner
 
 async function main() {
-  const N = flag('--limit') ? parseInt(opt('--limit', '1'), 10) : COUNT;
+  const N = flag('--limit') ? L.int(opt('--limit', '1'), 1) : COUNT;
   L.log(`upstage mint start: count=${N} conc=${CONC} port=${PORT}`);
   const pool = loadUpPool();
   // loadUpPool returns [null] (direct) when no pool file exists; an empty list
@@ -456,6 +477,7 @@ async function main() {
   const done = state.accounts.length;
   let next = done;
   const errors = [];
+  let okKeys = 0;
 
   async function worker() {
     while (true) {
@@ -483,6 +505,7 @@ async function main() {
           keyMasked: `${key.slice(0, 4)}…${key.slice(-4)}`,
           verified: !!v.ok,
           verifyStatus: v.status || v.chat || null,
+          verifyNote: v.note || null, // an indeterminate answer (429/5xx/transport) must be readable as such
           models: (v.models || []).slice(0, 8),
           chat: v.chat || null,
           credit: null,
@@ -492,11 +515,12 @@ async function main() {
           apiBodies: (flow.bodies || []).map((b) => ({ url: b.url.split('?')[0], status: b.status, text: String(b.text).slice(0, 800) })).slice(0, 20),
         };
         if (v.ok) {
+          okKeys++;
           appendKey(key);
           appendAccount(rec);
           L.log(`[${id}] verified ${rec.keyMasked} chat=${v.chat} void`);
         } else {
-          fs.writeFileSync(path.join(L.OUT, `acct${id}-unverified.json`), JSON.stringify(rec, null, 2));
+          fs.writeFileSync(path.join(L.OUT, `acct${id}-unverified.json`), JSON.stringify(rec, null, 2), { mode: 0o600 });
           errors.push(`#${id} key not verified: ${v.note || v.status}`);
           L.log(`[${id}] KEY UNVERIFIED ${v.note || v.status}`);
         }
@@ -519,6 +543,7 @@ async function main() {
   await Promise.all(Array.from({ length: Math.min(CONC, N) }, (_, i) => worker(i)));
   L.log(`done. keys=${fs.existsSync(KEYS_TXT) ? fs.readFileSync(KEYS_TXT, 'utf8').split(/\r?\n/).filter(Boolean).length : 0}`);
   if (errors.length) L.log(`errors:\n` + errors.join('\n'));
+  if (okKeys === 0) process.exitCode = 1; // nothing minted is not a success
   if (!KEEP_OPEN) cdp.close();
 }
 
