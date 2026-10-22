@@ -18,6 +18,7 @@
 [![License](https://img.shields.io/badge/license-MIT-6ea8fe?style=for-the-badge)](LICENSE)
 [![Models](https://img.shields.io/badge/models-16%20served-412991?style=for-the-badge)](https://developers.upstage.ai)
 [![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6?style=for-the-badge)](#-connect-to-9router)
+[![OmniRoute](https://img.shields.io/badge/OmniRoute-connector-8B5CF6?style=for-the-badge)](#-connect-to-omniroute)
 [![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
 
 [🛠 Schnellstart](#-quick-start) · [🎁 Kostenlose Stufe](#-free-tier--how-much-you-get) · [🤖 Modelle](#-models--all-16-of-them) · [🧪 API verwenden](#-how-to-use-the-api) · [✅ Verifiziert](#-verified-working--every-key-is-tested) · [🧭 So funktioniert es](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [⚙️ Optionen](#️-cli-options) · [🛰️ Proxys](#️-behind-a-proxy) · [🐞 Probleme](#-issues)
@@ -208,6 +209,17 @@ node src/connect-9router.js \
 
 Standardwerte: Basis `http://localhost:20128`, Passwort `123456`, Knoten `Upstage`, Präfix `upstage`, Upstream `https://api.upstage.ai/v1`, Standardmodell `solar-mini4`. Registriere einen weiteren erzeugten Schlüssel mit `--name "<label 2>"` — jeder Schlüssel wird eine weitere Verbindung, über die 9Router Lastverteilung betreiben kann. Modelle werden dann als `upstage/<model id>` bereitgestellt.
 
+## 🔌 Mit OmniRoute verbinden
+
+[OmniRoute](https://omniroute.online) ist ein selbst gehosteter, OpenAI-kompatibler Router. Upstage ist OpenAI-kompatibel, daher trägt ein `openai-compatible`-Knoten jeden Schlüssel:
+
+```bash
+node src/connect-omniroute.js \
+  --base http://localhost:20128 --password 123456 \
+  --api-key <key>            # or env NINEROUTER_API_KEY
+```
+
+Standardwerte: Basis `http://localhost:20128`, Passwort `123456`, Knoten `Upstage`, Präfix `upstage`, Upstream `https://api.upstage.ai/v1`, Standardmodell `solar-mini4`. Registriere einen weiteren erzeugten Schlüssel mit `--name "<label 2>"` — jeder Schlüssel wird eine weitere Verbindung, über die OmniRoute Lastverteilung betreiben kann. Modelle werden dann als `upstage/<model id>` bereitgestellt.
 ## 🔑 Was dir ein Schlüssel bietet
 
 | | |

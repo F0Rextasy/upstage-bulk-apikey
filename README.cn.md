@@ -18,6 +18,7 @@
 [![License](https://img.shields.io/badge/license-MIT-6ea8fe?style=for-the-badge)](LICENSE)
 [![Models](https://img.shields.io/badge/models-16%20served-412991?style=for-the-badge)](https://developers.upstage.ai)
 [![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6?style=for-the-badge)](#-connect-to-9router)
+[![OmniRoute](https://img.shields.io/badge/OmniRoute-connector-8B5CF6?style=for-the-badge)](#-connect-to-omniroute)
 [![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
 
 [🛠 Quick start](#-quick-start) · [🎁 Free tier](#-free-tier--how-much-you-get) · [🤖 Models](#-models--all-16-of-them) · [🧪 Use the API](#-how-to-use-the-api) · [✅ Verified](#-verified-working--every-key-is-tested) · [🧭 How it works](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [⚙️ Options](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Issues](#-issues)
@@ -208,6 +209,17 @@ node src/connect-9router.js \
 
 默认值：base 为 `http://localhost:20128`，密码为 `123456`，节点为 `Upstage`，前缀为 `upstage`，上游为 `https://api.upstage.ai/v1`，默认模型为 `solar-mini4`。使用 `--name "<label 2>"` 注册另一个已生成的 key——每个 key 都会成为 9Router 可以负载均衡的另一个连接。随后模型会以 `upstage/<model id>` 的形式提供。
 
+## 🔌 连接到 OmniRoute
+
+[OmniRoute](https://omniroute.online) 是一个自托管、兼容 OpenAI 的路由器。Upstage 兼容 OpenAI，因此一个 `openai-compatible` 节点即可承载所有 key：
+
+```bash
+node src/connect-omniroute.js \
+  --base http://localhost:20128 --password 123456 \
+  --api-key <key>            # or env NINEROUTER_API_KEY
+```
+
+默认值：base 为 `http://localhost:20128`，密码为 `123456`，节点为 `Upstage`，前缀为 `upstage`，上游为 `https://api.upstage.ai/v1`，默认模型为 `solar-mini4`。使用 `--name "<label 2>"` 注册另一个已生成的 key——每个 key 都会成为 OmniRoute 可以负载均衡的另一个连接。随后模型会以 `upstage/<model id>` 的形式提供。
 ## 🔑 一个 key 能带来什么
 
 | | |

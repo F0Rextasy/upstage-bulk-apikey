@@ -18,6 +18,7 @@
 [![License](https://img.shields.io/badge/license-MIT-6ea8fe?style=for-the-badge)](LICENSE)
 [![Models](https://img.shields.io/badge/models-16%20served-412991?style=for-the-badge)](https://developers.upstage.ai)
 [![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6?style=for-the-badge)](#-connect-to-9router)
+[![OmniRoute](https://img.shields.io/badge/OmniRoute-connector-8B5CF6?style=for-the-badge)](#-connect-to-omniroute)
 [![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
 
 [🛠 クイックスタート](#-quick-start) · [🎁 無料枠](#-free-tier--how-much-you-get) · [🤖 モデル](#-models--all-16-of-them) · [🧪 APIの使い方](#-how-to-use-the-api) · [✅ 動作確認済み](#-verified-working--every-key-is-tested) · [🧭 仕組み](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [⚙️ オプション](#️-cli-options) · [🛰️ プロキシ](#️-behind-a-proxy) · [🐞 問題報告](#-issues)
@@ -208,6 +209,17 @@ node src/connect-9router.js \
 
 デフォルト：ベース`http://localhost:20128`、パスワード`123456`、ノード`Upstage`、プレフィックス`upstage`、上流`https://api.upstage.ai/v1`、デフォルトモデル`solar-mini4`。発行済みの別のキーを`--name "<label 2>"`で登録できます — キーごとに9Routerが負荷分散できる別の接続になります。モデルは`upstage/<model id>`として提供されます。
 
+## 🔌 OmniRouteへの接続
+
+[OmniRoute](https://omniroute.online)はセルフホスト型のOpenAI互換ルーターです。UpstageはOpenAI互換なので、1つの`openai-compatible`ノードがすべてのキーを担えます：
+
+```bash
+node src/connect-omniroute.js \
+  --base http://localhost:20128 --password 123456 \
+  --api-key <key>            # or env NINEROUTER_API_KEY
+```
+
+デフォルト：ベース`http://localhost:20128`、パスワード`123456`、ノード`Upstage`、プレフィックス`upstage`、上流`https://api.upstage.ai/v1`、デフォルトモデル`solar-mini4`。発行済みの別のキーを`--name "<label 2>"`で登録できます — キーごとにOmniRouteが負荷分散できる別の接続になります。モデルは`upstage/<model id>`として提供されます。
 ## 🔑 1つのキーで得られるもの
 
 | | |

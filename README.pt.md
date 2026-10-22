@@ -18,6 +18,7 @@
 [![License](https://img.shields.io/badge/license-MIT-6ea8fe?style=for-the-badge)](LICENSE)
 [![Models](https://img.shields.io/badge/models-16%20served-412991?style=for-the-badge)](https://developers.upstage.ai)
 [![9Router](https://img.shields.io/badge/9Router-connector-8B5CF6?style=for-the-badge)](#-connect-to-9router)
+[![OmniRoute](https://img.shields.io/badge/OmniRoute-connector-8B5CF6?style=for-the-badge)](#-connect-to-omniroute)
 [![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
 
 [🛠 Início rápido](#-quick-start) · [🎁 Nível gratuito](#-free-tier--how-much-you-get) · [🤖 Modelos](#-models--all-16-of-them) · [🧪 Use a API](#-how-to-use-the-api) · [✅ Verificado](#-verified-working--every-key-is-tested) · [🧭 Como funciona](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [⚙️ Opções](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Problemas](#-issues)
@@ -208,6 +209,17 @@ node src/connect-9router.js \
 
 Padrões: base `http://localhost:20128`, senha `123456`, nó `Upstage`, prefixo `upstage`, upstream `https://api.upstage.ai/v1`, modelo padrão `solar-mini4`. Registre outra chave gerada com `--name "<label 2>"` — cada chave se torna outra conexão pela qual o 9Router pode balancear a carga. Os modelos são então servidos como `upstage/<model id>`.
 
+## 🔌 Conectar ao OmniRoute
+
+[OmniRoute](https://omniroute.online) é um roteador auto-hospedado e compatível com OpenAI. A Upstage é compatível com OpenAI, então um nó `openai-compatible` carrega todas as chaves:
+
+```bash
+node src/connect-omniroute.js \
+  --base http://localhost:20128 --password 123456 \
+  --api-key <key>            # or env NINEROUTER_API_KEY
+```
+
+Padrões: base `http://localhost:20128`, senha `123456`, nó `Upstage`, prefixo `upstage`, upstream `https://api.upstage.ai/v1`, modelo padrão `solar-mini4`. Registre outra chave gerada com `--name "<label 2>"` — cada chave se torna outra conexão pela qual o OmniRoute pode balancear a carga. Os modelos são então servidos como `upstage/<model id>`.
 ## 🔑 O que uma chave oferece
 
 | | |
