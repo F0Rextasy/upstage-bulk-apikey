@@ -691,7 +691,6 @@ async function openContext(cdp, proxy, { capture } = {}) {
   const ctx = await cdp.createBrowserContext(proxy ? { proxyServer: proxyLib.browserUrl(proxy) } : {});
   const { targetId, sessionId } = await cdp.newPage({ browserContextId: ctx, url: 'about:blank' });
   await cdp.send('Page.enable', {}, sessionId);
-  await cdp.send('Runtime.enable', {}, sessionId);
   await cdp.send('Network.enable', {}, sessionId);
   // NOTE: no Emulation.setUserAgentOverride — an engine/UA mismatch (real Chrome
   // 155 vs a spoofed 141 string) is a first-class bot signal for Cloudflare,
