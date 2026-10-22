@@ -110,10 +110,12 @@ cd upstage-bulk-apikey
 printf 'socks5://127.0.0.1:1080\n' > src/proxies.txt
 
 # 2) mailboxes — point the tool at your own mailbox (an inbox API token or IMAP):
+
 #    the sign-up code is read from a fresh inbox per account
 
 # 3) go
 node src/launcher.js                 # interactive menu: mint / finish / verify / screen
+
 # or drive it directly:
 node src/cli.js mint   --count 30 --conc 2
 node src/cli.js finish --conc 2      # finish accounts whose key step never completed

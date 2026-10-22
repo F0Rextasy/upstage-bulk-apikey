@@ -134,7 +134,7 @@ A key is written to `keys.txt` only after the live API answers with it:
 |---|---|---|
 | auth + model list | `GET https://api.upstage.ai/v1/models` | `200` + the account's model ids |
 | real generation | `POST https://api.upstage.ai/v1/chat/completions` (`solar-pro2`) | `200` + non-empty `choices[0].message.content` |
-| the shipped batch | **31 distinct accounts → 31 keys, every one verified** | `models` 200 + `solar-pro2` chat 200 |
+| the shipped batch | **keys verified** | `models` 200 + `solar-pro2` chat 200 |
 
 The verifier **rotates exits on 403/429/5xx/transport errors** and only fails a key on `401`, so a key is never condemned because one exit was rejected. `node src/cli.js verify --chat` reproduces exactly that check for your own file.
 
