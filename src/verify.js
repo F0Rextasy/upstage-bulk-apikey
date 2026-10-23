@@ -19,11 +19,15 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const proxyLib = require('./proxy.js');
+const L = require('./lib.js');
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => (args.includes(name) ? args[args.indexOf(name) + 1] : dflt);
 const flag = (name) => args.includes(name);
 const API = 'https://api.upstage.ai/v1';
+
+/** Statuses that are the key's own verdict (dead key) — not a transport failure. */
+const VERDICT = new Set([401, 402, 403]);
 
 const POOL = [
   path.join(__dirname, 'proxies.txt'),
@@ -129,6 +133,7 @@ async function main() {
     process.exit(2);
   }
 
+  const dead = [];
   let i = 0;
   let ok = 0;
   for (const key of keys) {
@@ -141,13 +146,16 @@ async function main() {
     const proxy = opt('--proxy') ? proxyLib.parseProxy(opt('--proxy')) : pool[i++ % pool.length];
     const label = `${key.slice(0, 4)}…${key.slice(-4)}`;
     let line = `${label}  proxy=${proxyLib.label(proxy)}`;
+    let deadStatus = 0;
     try {
       const m = await models(key, proxy);
+      if (VERDICT.has(m.status)) deadStatus = m.status;
       line += `  models=${m.status}(${m.ids.length})`;
       if (m.status === 200) {
         ok++;
         if (flag('--chat')) {
           const c = await chat(key, proxy);
+          if (VERDICT.has(c.status)) deadStatus = c.status;
           line += `  chat=${c.status}${c.out ? ` "${c.out.trim().slice(0, 20)}"` : ` ${(c.text || '').slice(0, 80)}`}`;
         }
       } else {
@@ -156,11 +164,25 @@ async function main() {
     } catch (e) {
       line += `  ERR ${e.message.slice(0, 100)}`;
     }
+    if (deadStatus) dead.push({ key, status: deadStatus });
     console.log(line);
+  }
+  // A key the panel refuses (401/402/403) is dead: it is written to
+  // keys-dead.txt beside the keys file — the verify path is the place that
+  // decides this, so it is also the place that records it.
+  if (dead.length) {
+    const deadFile = opt('--dead') || (opt('--file') ? path.join(path.dirname(path.resolve(opt('--file'))), 'keys-dead.txt') : path.join(L.HERE, 'keys-dead.txt'));
+    fs.mkdirSync(path.dirname(deadFile), { recursive: true });
+    const seen = fs.existsSync(deadFile) ? fs.readFileSync(deadFile, 'utf8').split(/\r?\n/).map(deadKeyOf) : [];
+    for (const d of dead) {
+      const line = deadLine(d.key, deadReason(d.status));
+  // keys-dead.txt standard: key \t reason(401|403|quota|ban) \t new Date().toISOString()
+      if (line && !seen.includes(d.key)) fs.appendFileSync(deadFile, line + '\n');
+    }
+    console.log(`dead keys: ${dead.length} → ${deadFile}`);
   }
   console.log(`\nverified ${ok}/${keys.length}`);
 }
-
 main().catch((e) => {
   console.error('VERIFY FAIL:', e.stack || e.message);
   process.exit(1);

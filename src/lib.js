@@ -24,7 +24,13 @@ const proxyLib = require('./proxy.js');
 const { CDP } = require('./cdp.js');
 
 const HERE = path.join(__dirname);
+// The user-facing convention (README): keys.txt, accounts.json and outputs live
+// at the checkout root, i.e. beside src/. Only the throw-away Chrome profile is
+// kept out of the checkout, so a run started inside a repo tree cannot drop a
+// `.up-chrome-<port>` directory into it.
 const OUT = path.join(HERE, 'outputs');
+/** One Chrome profile per DevTools port, outside the checkout. */
+const chromeProfileDir = (port) => path.join(os.tmpdir(), 'upstage-chrome', String(port));
 const ORIGIN = 'https://console.upstage.ai';
 const API_BASE = 'https://api.upstage.ai/v1';
 const PUBLIC_SITE = 'https://www.upstage.ai';
@@ -498,6 +504,9 @@ function extractLinks(msg) {
 // ------------------------------------------------------------------- chrome
 
 function launchChrome(port, profileDir, { headless = true } = {}) {
+  // A profile path inside the checkout drops `.up-chrome-<port>` into the repo
+  // tree (measured on 2026-10-23): never let a caller do that.
+  if (!profileDir || path.resolve(profileDir).startsWith(path.resolve(HERE))) profileDir = chromeProfileDir(port);
   let lean = [];
   try {
     lean = require('./chrome-flags.js').leanArgs(); // across runs memory trim
