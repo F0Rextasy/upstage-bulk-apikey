@@ -1,12 +1,11 @@
 {
   "name": "upstage-bulk-apikey",
   "version": "1.0.0",
-  "description": "Bulk API keys for upstage.ai — free tier: $10 credit per account, 16 Solar models (solar-pro4, solar-pro3, solar-pro2, solar-mini4, syn-pro). One account per key; mint any number.",
+  "description": "Bulk-create Upstage (upstage.ai) accounts with auto-generated API keys — OpenAI-compatible inference + 9Router connector.",
   "license": "MIT",
   "type": "commonjs",
   "bin": {
     "upstage-bulk-apikey": "src/cli.js",
-    "upstage-bulk-apikey-9router": "src/connect-9router.js",
     "upstage-bulk-apikey-launcher": "src/launcher.js"
   },
   "main": "src/cli.js",
@@ -25,37 +24,10 @@
     "register",
     "launcher",
     "upstage",
-    "bulk",
-    "apikey",
-    "9router",
-    "openai-compatible"
+    "apikey"
   ],
   "files": [
-    "src/cdp.js",
-    "src/chrome-flags.js",
-    "src/cli.js",
-    "src/connect-9router.js",
-    "src/diag.js",
-    "src/exp.js",
-    "src/finish.js",
-    "src/flow.js",
-    "src/grabchunks.js",
-    "src/harvest.js",
-    "src/launcher.js",
-    "src/lib.js",
-    "src/mint.js",
-    "src/pilot.js",
-    "src/pool.js",
-    "src/probe.js",
-    "src/proxy.js",
-    "src/register.js",
-    "src/screen-api.js",
-    "src/summarize.js",
-    "src/termsctl.js",
-    "src/termslab.js",
-    "src/verify.js",
-    "src/warm.js",
-    "src/models.json",
+    "src",
     "README.md",
     "LICENSE"
   ]

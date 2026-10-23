@@ -2,11 +2,15 @@
 'use strict';
 
 /**
- * Interactive launcher — a menu over the task modules, with settings persisted to
- * launcher.config.json next to this file.
+ * Interactive launcher for the compiled build.
  *
- *   node src/launcher.js          menu
- *   node src/launcher.js --help   same help as cli.js
+ * The CLI's options stay configurable without reading its source: this launcher
+ * asks for them, remembers the answers in `launcher.config.json`, and then runs
+ * the CLI with the right flags — including the proxy list, which is the setting
+ * people most often need and cannot guess.
+ *
+ * Usage: node src/launcher.js            (menu)
+ *        node src/launcher.js --help
  */
 
 const fs = require('fs');
@@ -14,181 +18,182 @@ const path = require('path');
 const readline = require('readline');
 const { spawnSync } = require('child_process');
 
-// Keep the menu alive when a task's socket dies mid-run.
-process.on('uncaughtException', (e) => console.log(`WARN uncaught: ${String(e && e.message).slice(0, 180)}`));
+const ROOT = path.resolve(__dirname, '..');
+const CONFIG = path.join(ROOT, 'launcher.config.json');
+const CLI = path.join(__dirname, 'cli.js');
 
-const HERE = __dirname;
-const CONFIG = path.join(HERE, 'launcher.config.json');
-const POOL = path.join(HERE, 'proxies.txt');
-const KEYS = path.join(HERE, 'keys.txt');
+const defaults = {
+  count: 50,
+  proxyFile: process.env['UPSTAGE_PROXIES'] || 'proxies.txt',
+  model: "solar-mini4",
+  routerBase: 'http://localhost:20128',
+  routerPassword: '123456',
+};
 
-const defaults = { count: 30, conc: 2, chatMin: 1, headed: false, limit: 0, file: 'keys.txt', preset: '' };
-let cfg = { ...defaults };
-try {
-  Object.assign(cfg, JSON.parse(fs.readFileSync(CONFIG, 'utf8')));
-} catch (e) {}
+function loadConfig() {
+  try {
+    return { ...defaults, ...JSON.parse(fs.readFileSync(CONFIG, 'utf8')) };
+  } catch (e) {
+    return { ...defaults };
+  }
+}
 
-const save = () => fs.writeFileSync(CONFIG, JSON.stringify(cfg, null, 2) + '\n');
+function saveConfig(cfg) {
+  try {
+    fs.writeFileSync(CONFIG, JSON.stringify(cfg, null, 2) + '\n');
+  } catch (e) {
+    console.error(`  ! could not write ${path.basename(CONFIG)}: ${e.message}`);
+  }
+}
+
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q, fallback) =>
-  new Promise((resolve) => rl.question(`${q}${fallback !== undefined ? ` [${fallback}]` : ''}: `, (a) => resolve(String(a).trim() || fallback)));
-// same as ask(), but nothing that is typed is echoed — the prompt stays visible, the key never does
-const askSecret = (q) => new Promise((resolve) => {
-  const write = rl._writeToOutput;
-  const prompt = q + ': ';
-  rl._writeToOutput = function (s) {
-    if (s === prompt) rl.output.write(s);
-    else if (s === '\r\n' || s === '\n') rl.output.write('\n');
-  };
-  rl.question(prompt, (a) => {
-    rl._writeToOutput = write;
-    resolve(String(a).trim());
+const ask = (question, fallback) =>
+  new Promise((resolve) => {
+    const hint = fallback ? ` [${String(fallback).slice(0, 30)}${String(fallback).length > 30 ? '…' : ''}]` : '';
+    rl.question(`  ${question}${hint}: `, (answer) => resolve(answer.trim() || fallback || ''));
   });
-});
 
-const LOGO = String.raw`
-  ██╗   ██╗██████╗ ███████╗████████╗ █████╗  ██████╗ ███████╗
-  ██║   ██║██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝ ██╔════╝
-  ██║   ██║██████╔╝███████╗   ██║   ███████║██║  ███╗█████╗
-  ██║   ██║██╔═══╝ ╚════██║   ██║   ██╔══██║██║   ██║██╔══╝
-  ╚██████╔╝██║     ███████║   ██║   ██║  ██║╚██████╔╝███████╗
-   ╚═════╝ ╚═╝     ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝`;
+function run(args, env = {}) {
+  console.log('');
+  const res = spawnSync(process.execPath, [CLI, ...args], {
+    windowsHide: true,
+    cwd: ROOT,
+    stdio: 'inherit',
+    env: { ...process.env, ...env },
+  });
+  if (res.status !== 0) console.log(`  ! exited with code ${res.status}`);
+}
+
+const BANNER_LOGO = String.raw`
+██╗   ██╗██████╗ ███████╗████████╗ █████╗  ██████╗ ███████╗
+██║   ██║██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔════╝ ██╔════╝
+██║   ██║██████╔╝███████╗   ██║   ███████║██║  ███╗█████╗
+██║   ██║██╔═══╝ ╚════██║   ██║   ██╔══██║██║   ██║██╔══╝
+╚██████╔╝██║     ███████║   ██║   ██║  ██║╚██████╔╝███████╗
+ ╚═════╝ ╚═╝     ╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+`;
 
 function banner() {
-  const text = ['upstage-bulk-apikey  ·  one Upstage account per API key, live-verified', 'MIT  ·  OpenAI-compatible  ·  9Router connector'];
-  const width = Math.max(78, Math.max(...LOGO.split('\n').map((l) => [...l].length)) - 4, ...text.map((l) => l.length));
-  const box = (s) => '  │ ' + s.padEnd(width) + ' │';
-  console.log(LOGO);
-  console.log('  ┌' + '─'.repeat(width + 2) + '┐');
-  for (const line of text) console.log(box(line));
-  console.log('  └' + '─'.repeat(width + 2) + '┘');
+  const cyan = '\x1b[36m';
+  const dim = '\x1b[2m';
+  const bold = '\x1b[1m';
+  const reset = '\x1b[0m';
+  const title = 'upstage-bulk-apikey';
+  const tagline = "$10 free credit per account — 16 Solar models, every key chat-verified";
+  const lines = BANNER_LOGO.replace(/^\n/, '').replace(/\n$/, '').split('\n');
+  const width = Math.max(...lines.map((l) => [...l].length), [...title].length, [...tagline].length);
+  const pad = (s) => s + ' '.repeat(width - [...s].length);
+  const inner = width + 4;
+  console.log('');
+  console.log(`${cyan}╔${'═'.repeat(inner)}╗${reset}`);
+  console.log(`${cyan}║${' '.repeat(inner)}║${reset}`);
+  for (const line of lines) console.log(`${cyan}║${reset}  ${bold}${pad(line)}${reset}  ${cyan}║${reset}`);
+  console.log(`${cyan}║${' '.repeat(inner)}║${reset}`);
+  console.log(`${cyan}║${reset}  ${pad(title)}  ${cyan}║${reset}`);
+  console.log(`${cyan}║${reset}  ${dim}${pad(tagline)}${reset}  ${cyan}║${reset}`);
+  console.log(`${cyan}║${' '.repeat(inner)}║${reset}`);
+  console.log(`${cyan}╚${'═'.repeat(inner)}╝${reset}`);
+  console.log(`  ${dim}upstage-bulk-apikey contributors${reset}`);
   console.log('');
 }
 
-function poolState() {
-  let n = 0;
-  try {
-    n = fs.readFileSync(POOL, 'utf8').split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#')).length;
-  } catch (e) {}
-  return n;
-}
+async function mintFlow(cfg) {
+  cfg.count = parseInt(await ask('How many accounts/keys do you want (any number)', cfg.count), 10) || cfg.count;
+  cfg.proxyFile = await ask('Proxy list file (one proxy per line)', cfg.proxyFile);
+  cfg.model = await ask('Model used for the live verification', cfg.model);
+  saveConfig(cfg);
 
-function keyState() {
-  let n = 0;
-  try {
-    n = fs.readFileSync(KEYS, 'utf8').split(/\r?\n/).filter((l) => l.trim()).length;
-  } catch (e) {}
-  return n;
-}
-
-function run(args) {
-  console.log(`\n▶ node src/${args.join(' ')}\n`);
-  const r = spawnSync(process.execPath, args.map((a) => (a.startsWith('--') ? a : a)), {
-    windowsHide: true,
-    cwd: HERE,
-    stdio: 'inherit',
-  });
-  if (r.status !== 0) console.log(`\n⚠ task exited with code ${r.status}`);
-}
-
-async function settings() {
-  console.log('\nSettings');
-  console.log(`  1) keys to mint        ${cfg.count}`);
-  console.log(`  2) browser concurrency ${cfg.conc}`);
-  console.log(`  3) chat proofs / key   ${cfg.chatMin}`);
-  console.log(`  4) show browser        ${cfg.headed ? 'yes' : 'no'}`);
-  console.log(`  5) attempt limit       ${cfg.limit || 'unlimited'}`);
-  console.log(`  6) keys file           ${cfg.file}`);
-  console.log(`  7) preset              ${cfg.preset || '(none — the task default)'}`);
-  console.log('  0) back');
-  const pick = await ask('choose', '0');
-  if (pick === '1') cfg.count = parseInt(await ask('keys to mint', cfg.count), 10) || cfg.count;
-  if (pick === '2') cfg.conc = parseInt(await ask('concurrency', cfg.conc), 10) || cfg.conc;
-  if (pick === '3') cfg.chatMin = parseInt(await ask('chat proofs', cfg.chatMin), 10) || 0;
-  if (pick === '4') cfg.headed = String(await ask('show browser (y/n)', cfg.headed ? 'y' : 'n')).toLowerCase().startsWith('y');
-  if (pick === '5') cfg.limit = parseInt(await ask('attempt limit', cfg.limit), 10) || 0;
-  if (pick === '6') cfg.file = await ask('keys file', cfg.file);
-  if (pick === '7') cfg.preset = String(await ask('preset (turbo/balanced/safe, blank = none)', cfg.preset)).trim().toLowerCase();
-  save();
-}
-
-function common() {
-  const a = ['--conc', String(cfg.conc)];
-  if (cfg.headed) a.push('--headed');
-  if (cfg.limit) a.push('--limit', String(cfg.limit));
-  // Run-shape presets (operator standard v3): turbo = 5 workers (recommended),
-  // balanced = 4, safe = 2. Empty keeps the task's own historical conc 3.
-  if (cfg.preset) a.push('--preset=' + cfg.preset);
-  return a;
-}
-
-async function connectFlow() {
-  console.log('\n9Router — register this provider node and one API key with a local 9Router instance');
-  const base = await ask('9Router base URL', 'http://localhost:20128');
-  const password = await ask('9Router password', '123456');
-  const apiKey = await askSecret('API key to register (blank = skip)');
-  if (!apiKey) {
-    console.log('  no key given — nothing to register');
-    return;
+  if (!fs.existsSync(path.resolve(ROOT, cfg.proxyFile)) && !fs.existsSync(cfg.proxyFile)) {
+    console.log(`  ! ${cfg.proxyFile} not found — running WITHOUT a proxy (direct)`);
+    console.log('    (put one exit per line there to route through proxies: http://host:port, socks5://host:port or host:port)');
   }
-  const name = await ask('connection label', 'Upstage');
-  const model = await ask('default model', 'solar-mini4');
-  process.env.NINEROUTER_API_KEY = apiKey;
-  run(['connect-9router.js', '--base', base, '--password', password, '--name', name, '--model', model]);
+  run(['--count', String(cfg.count), '--model', cfg.model], { ['UPSTAGE_PROXIES']: cfg.proxyFile });
+}
+
+async function verifyFlow(cfg) {
+  cfg.proxyFile = await ask('Proxy list file', cfg.proxyFile);
+  saveConfig(cfg);
+  run(['--verify-only'], { ['UPSTAGE_PROXIES']: cfg.proxyFile });
+}
+
+async function screenFlow(cfg) {
+  cfg.proxyFile = await ask('Proxy list file to screen', cfg.proxyFile);
+  saveConfig(cfg);
+  run(['--screen'], { ['UPSTAGE_PROXIES']: cfg.proxyFile });
+}
+
+async function connectFlow(cfg) {
+  const { connectKeysFile, connect9Router } = require('./connect-9router.js');
+  cfg.routerBase = await ask('9Router base URL', cfg.routerBase);
+  cfg.routerPassword = await ask('9Router password', cfg.routerPassword);
+  saveConfig(cfg);
+  console.log('');
+  try {
+    await connectKeysFile({ base: cfg.routerBase, password: cfg.routerPassword });
+  } catch (e) {
+    if (!/no API keys/.test(e.message)) throw e;
+    console.log(`  ! ${e.message}`);
+    const apiKey = await ask('Single Upstage key to register');
+    if (apiKey) await connect9Router({ base: cfg.routerBase, password: cfg.routerPassword, apiKey });
+  }
+}
+
+async function connectFlowOmni(cfg) {
+  const { connectKeysFile, connectOmniRoute } = require('./connect-omniroute.js');
+  cfg.routerBase = await ask('OmniRoute base URL', cfg.routerBase);
+  cfg.routerPassword = await ask('OmniRoute password', cfg.routerPassword);
+  saveConfig(cfg);
+  console.log('');
+  try {
+    await connectKeysFile({ base: cfg.routerBase, password: cfg.routerPassword });
+  } catch (e) {
+    if (!/no API keys/.test(e.message)) throw e;
+    console.log(`  ! ${e.message}`);
+    const apiKey = await ask('Single Upstage key to register');
+    if (apiKey) await connectOmniRoute({ base: cfg.routerBase, password: cfg.routerPassword, apiKey });
+  }
 }
 
 async function main() {
-  process.stdout.write('\x1b[2J\x1b[H');
-  banner();
-  console.log(`  proxy exits: ${poolState() || 'none — running WITHOUT a proxy (direct)'}     keys on disk: ${keyState()}\n`);
-  console.log('  1) Mint keys           create fresh accounts, one key each, verify by chat');
-  console.log('  2) Finish accounts     log in to accounts already created and finish their key');
-  console.log('  3) Verify keys         re-check everything in the keys file');
-  console.log('  4) Screen the pool     keep only exits that reach the provider API');
-  console.log('  5) Settings');
-  console.log('  6) Help / command line');
-  console.log('  7) 9Router             register a key with a local 9Router instance (asks for base/password/key)');
-  console.log('  0) Exit\n');
-  const choice = await ask('choose', '1');
-
-  if (choice === '1') {
-    run(['mint.js', '--count', String(cfg.count), '--chat-min', String(cfg.chatMin), ...common()]);
-  } else if (choice === '2') {
-    const only = await ask('account ids (comma separated, blank = all)', '');
-    run(['finish.js', ...(only ? ['--only', only] : []), ...common()]);
-  } else if (choice === '3') {
-    const chat = String(await ask('also send a chat completion per key (y/n)', 'y')).toLowerCase().startsWith('y');
-    run(['verify.js', '--file', cfg.file, ...(chat ? ['--chat'] : [])]);
-  } else if (choice === '4') {
-    const limit = await ask('exits to test', '200');
-    run(['screen-api.js', '--limit', String(limit), '--conc', '16']);
-  } else if (choice === '5') {
-    await settings();
-  } else if (choice === '6') {
-    run(['cli.js', 'help']);
-  } else if (choice === '7') {
-    await connectFlow();
-  } else {
+  const cfg = loadConfig();
+  if (process.argv.includes('--connect-9router')) {
+    await connectFlow(cfg);
     rl.close();
     return;
   }
-  await ask('\npress enter for the menu', '');
-  return main();
+
+  if (process.argv.includes('--connect-omniroute')) {
+    await connectFlowOmni(cfg);
+    rl.close();
+    return;
+  }
+  banner();
+  console.log('  1) Mint keys      — create one account per key and verify each with a live chat call');
+  console.log('  2) Verify keys    — re-check every key in keys.txt with a live chat call');
+  console.log('  3) Screen proxies — test your proxy list for exits that reach Upstage');
+  console.log('  4) Settings       — show what this launcher remembers');
+  console.log('  5) Help           — CLI options and notes');
+  console.log('  6) Connect to 9Router — register the keys in keys.txt with a local 9Router');
+  console.log('  7) Connect to OmniRoute — register the keys in keys.txt with a local OmniRoute');
+  console.log('  q) Quit\n');
+  const choice = (await ask('Choose', '1')).toLowerCase();
+
+  if (choice === '1') await mintFlow(cfg);
+  else if (choice === '2') await verifyFlow(cfg);
+  else if (choice === '3') await screenFlow(cfg);
+  else if (choice === '4') console.log('\n' + JSON.stringify(cfg, null, 2));
+  else if (choice === '5') run(['--help']);
+  else if (choice === '6') await connectFlow(cfg);
+  else if (choice === '7') await connectFlowOmni(cfg);
+  rl.close();
 }
 
 if (process.argv.includes('--help') || process.argv.includes('-h')) {
-  process.argv = [process.argv[0], path.join(HERE, 'cli.js'), 'help'];
-  require('./cli.js');
-} else if (process.argv.includes('--connect-9router')) {
-  connectFlow()
-    .then(() => rl.close())
-    .catch((e) => {
-      console.error('launcher failed:', e.stack || e.message);
-      process.exit(1);
-    });
-} else {
-  main().catch((e) => {
-    console.error('launcher failed:', e.stack || e.message);
-    process.exit(1);
-  });
+  console.log('Interactive launcher: run `node src/launcher.js` and pick a menu item.');
+  process.exit(0);
 }
+
+main().catch((e) => {
+  console.error('[fatal]', e.message);
+  process.exit(1);
+});

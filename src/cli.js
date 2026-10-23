@@ -37,11 +37,8 @@ function help() {
   console.log('  --count N     keys to mint          --conc N     browser concurrency (2 is safe)');
   console.log('  --limit N     stop after N attempts --chat-min N require this many chat replies');
   console.log('  --headed      show the browser      --file F     keys file (verify)');
-  console.log('  --preset P    run shape: turbo (5 workers, recommended) / balanced / safe');
-  console.log('\nproxy pool [optional]:');
-  console.log('  one exit per line in src/proxies.txt — scheme://host:port[#comment], user:pass@ supported');
-  console.log('\nRequests go through your proxy list when one is provided (src/proxies.txt).');
-  console.log('Without a pool the tool connects directly.');
+  console.log('\nproxy pool:');
+  console.log('  one exit per line in proxies.txt — scheme://host:port[#comment], user:pass@ supported');
   console.log('\n9Router (optional, local inference router):');
   console.log('  node src/cli.js connect --api-key <key>        register node + key (node src/connect-9router.js --help)');
   console.log('  node src/cli.js --connect-9router --api-key <key>   the same task');

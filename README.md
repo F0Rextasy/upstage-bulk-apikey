@@ -21,7 +21,7 @@
 [![OmniRoute](https://img.shields.io/badge/OmniRoute-connector-8B5CF6?style=for-the-badge)](#-connect-to-omniroute)
 [![X](https://img.shields.io/badge/X-%40bigbullapp-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/bigbullapp)
 
-[🛠 Quick start](#-quick-start) · [🎁 Free tier](#-free-tier--how-much-you-get) · [🤖 Models](#-models--all-16-of-them) · [🧪 Use the API](#-how-to-use-the-api) · [✅ Verified](#-verified-working--every-key-is-tested) · [🧭 How it works](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [⚙️ Options](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Issues](#-issues)
+[🛠 Quick start](#-quick-start) · [🎁 Free tier](#-free-tier--how-much-you-get) · [🤖 Models](#-models--all-16-of-them) · [🧪 Use the API](#-how-to-use-the-api) · [✅ Verified](#-verified-working--every-key-is-tested) · [🧭 How it works](#-how-it-works) · [🔌 9Router](#-connect-to-9router) · [🔌 OmniRoute](#-connect-to-omniroute) · [⚙️ Options](#️-cli-options) · [🛰️ Proxies](#️-behind-a-proxy) · [🐞 Issues](#-issues)
 
 </div>
 
@@ -61,22 +61,13 @@ node src/cli.js --verify-only     # every key in keys.txt is re-tested with a re
 
 `models.json` is the live `GET /v1/models` answer of minted keys — **16 ids**, including:
 
-|Model|✓|
-|---|---|
-|`solar-pro2`|✓|
-|`solar-mini`|✓|
-|`solar-mini-250422`|✓|
-|`solar-mini4`|✓|
-|`solar-mini4-260922`|✓|
-|`solar-pro2-251215`|✓|
-|`solar-pro3`|✓|
-|`solar-pro3-260323`|✓|
-|`solar-pro4`|✓|
-|`solar-pro4-260806`|✓|
-|`syn-pro`|✓|
-|`syn-pro-251021`|✓|
-
-2026-10-19 live re-check: 12 of the 16 catalogue ids answered a chat `200` (the other tested ids — `solar-decide`, `solar-decide-flash`, `solar-jev` — did not).
+| Model ID | Note |
+| --- | --- |
+| `solar-pro4`, `solar-pro3`, `solar-pro2` | pro line (newest first) |
+| `solar-mini4`, `solar-mini` | small / fast |
+| `solar-decide`, `solar-decide-flash` | task-specific endpoints |
+| `solar-jev`, `syn-pro` | specialised / synchronous endpoints |
+| `solar-pro4-260806`, `solar-pro3-260323`, `solar-pro2-251215`, `solar-mini4-260922`, `solar-mini-250422`, `syn-pro-251021`, `solar-pro4-solar-pro2-…` | dated snapshots of the above |
 
 Live probe of one key:
 
@@ -107,7 +98,7 @@ print(client.chat.completions.create(model="solar-pro2",
 git clone https://github.com/F0Rextasy/upstage-bulk-apikey.git
 cd upstage-bulk-apikey
 
-# 1) your proxy list — optional, one line per exit (http://, socks5://, socks4:// or bare host:port)
+# 1) your proxy list, one line per exit (http://, socks5://, socks4:// or bare host:port)
 printf 'socks5://127.0.0.1:1080\n' > src/proxies.txt
 
 # 2) mailboxes — point the tool at your own mailbox (an inbox API token or IMAP):
@@ -129,20 +120,21 @@ The launcher asks for the count, concurrency and mailbox/proxy settings, remembe
 
 ## ✅ Verified working — every key is tested
 
-> **Quality gates.** Every key here passed a live `chat-200` before it was written to `keys.txt`
-> (dead keys are never shipped). Router combos follow the same rule at the model level: an entry is
-> added **only if the model answers `chat-200` and can call tools** — a model without tool support,
-> a dead key or a dead provider is dropped instead of added. Works with **9Router and OmniRoute**.
-
 A key is written to `keys.txt` only after the live API answers with it:
 
 | Check | Call | Expected |
 |---|---|---|
 | auth + model list | `GET https://api.upstage.ai/v1/models` | `200` + the account's model ids |
 | real generation | `POST https://api.upstage.ai/v1/chat/completions` (`solar-pro2`) | `200` + non-empty `choices[0].message.content` |
-| the shipped batch | **keys verified** | `models` 200 + `solar-pro2` chat 200 |
+| the shipped batch | **each account minted its own key, every one verified** | `models` 200 + `solar-pro2` chat 200 |
 
 The verifier **rotates exits on 403/429/5xx/transport errors** and only fails a key on `401`, so a key is never condemned because one exit was rejected. `node src/cli.js verify --chat` reproduces exactly that check for your own file.
+
+> **Quality gates.** Every key here passed a live `chat-200` before it was written to `keys.txt`
+> (dead keys are never shipped). Router combos follow the same rule at the model level: an entry is
+> added **only if the model answers `chat-200` and can call tools** — a model without tool support,
+> a dead key or a dead provider is dropped instead of added. Re-run the verify step any time;
+> failures are reported, never hidden.
 
 ## 🧭 How it works
 
@@ -170,13 +162,11 @@ Per account, one isolated Chrome context (its own proxy + storage):
 
 | Task | Flags |
 |---|---|
-| `mint` | `--count N` (30) · `--conc N` (3) · `--preset turbo\|balanced\|safe` (conc + pacing gap) · `--gap S` · `--idbase N` (0) · `--attempts N` (4) · `--chat-min N` · `--limit N` · `--headed` |
+| `mint` | `--count N` (30) · `--conc N` (3) · `--idbase N` (0) · `--attempts N` (4) · `--chat-min N` · `--limit N` · `--headed` |
 | `finish` | `--conc N` · `--only 25,108` · `--attempts N` · `--limit N` · `--headed` |
 | `verify` | `--file keys.txt` · `--limit N` · `--chat` · `--proxy <one exit>` |
 | `screen` | `--limit N` · `--conc N` — keep only exits that reach the provider API |
 | `harvest` | screen raw feed lists into a usable pool |
-
-Turbo önerilir (5); daha fazlası zayıf bilgisayarda yük/ban riski.
 
 | Environment variable | Default | Meaning |
 | --- | --- | --- |
@@ -186,10 +176,9 @@ Settings persist in `launcher.config.json`; keys land in `keys.txt`, one per lin
 
 ## 🛰️ Behind a proxy
 
-**Optional — recommended at scale (per-IP limits, bans).** The tool works without a proxy too.
-
-* **With a pool:** `src/proxies.txt` — one exit per line (the launcher and every task read it from `src/`); `scheme://user:pass@host:port`, `scheme://host:port` or bare `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored. Every exit gets a **point-of-use probe** before an account spends time on it; dead exits are dropped, and the pool is only re-read when the usable set runs dry — a dead line fails that attempt, never a silent fall back to direct.
-* **Without a pool:** the CLI prints `running WITHOUT a proxy (direct)` and connects directly. Nothing about sign-up, key minting or verification changes — only where the packets leave from.
+* `src/proxies.txt` — one exit per line (the launcher and every task read it from `src/`); `scheme://user:pass@host:port`, `scheme://host:port` or bare `host:port` (defaults to `http://`). Comments after `#` and blank lines are ignored.
+* Every exit gets a **point-of-use probe** before an account spends time on it; dead exits are dropped, and the pool is only re-read when the usable set runs dry.
+* Nothing listens on your own interface: every request in the flow goes through the pool.
 
 ## 📄 Files
 
@@ -224,6 +213,7 @@ node src/connect-omniroute.js \
 ```
 
 Defaults: base `http://localhost:20128`, password `123456`, node `Upstage`, prefix `upstage`, upstream `https://api.upstage.ai/v1`, default model `solar-mini4`. Register another minted key with `--name "<label 2>"` — every key becomes another connection OmniRoute can load-balance across. Models are then served as `upstage/<model id>`.
+
 ## 🔑 What one key gets you
 
 | | |
