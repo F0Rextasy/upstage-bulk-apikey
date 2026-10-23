@@ -21,6 +21,21 @@ const https = require('https');
 const proxyLib = require('./proxy.js');
 const L = require('./lib.js');
 
+/** keys-dead.txt standard: key \t reason \t ISO, reason in 401|403|quota|ban.
+ * 429/5xx/transport are transient (retry them — the same key may answer later): never dead. */
+function deadReason(status, text = '') {
+  const s = `${status == null ? '' : status} ${text || ''}`;
+  if (/\b429\b|rate.?limit|\b5\d\d\b|timeout|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|transport|network/i.test(s)) return null;
+  if (/\b401\b|unauthor/i.test(s)) return '401';
+  if (/\b403\b|forbidden/i.test(s)) return '403';
+  if (/\b402\b|quota|insufficient|no credit|out of credit|balance|exhaust/i.test(s)) return 'quota';
+  if (/banned|suspend|deactivat|disabled/i.test(s)) return 'ban';
+  return null;
+}
+/** The standard line (key tab reason tab ISO), or null when the reason is not final. */
+const deadLine = (key, reason) => (reason ? [key, reason, new Date().toISOString()].join(String.fromCharCode(9)) : null);
+
+
 const args = process.argv.slice(2);
 const opt = (name, dflt) => (args.includes(name) ? args[args.indexOf(name) + 1] : dflt);
 const flag = (name) => args.includes(name);
